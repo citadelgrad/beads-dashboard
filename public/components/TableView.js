@@ -24,6 +24,10 @@
                   : null;
                 const isClosed = issue.status === "closed";
                 const today = new Date();
+                const ageInDays = Math.floor(
+                  (today - created) / (1000 * 60 * 60 * 24)
+                );
+                const isStale = !isClosed && ageInDays > 30;
 
                 let cycleTime = "-";
                 let age = "-";
@@ -34,10 +38,7 @@
                   );
                   cycleTime = `${diff}d`;
                 } else {
-                  const diff = Math.floor(
-                    (today - created) / (1000 * 60 * 60 * 24)
-                  );
-                  age = `${diff}d`;
+                  age = `${ageInDays}d`;
                 }
 
                 return (
@@ -77,7 +78,9 @@
                       {updated ? updated.toLocaleDateString() : "-"}
                     </td>
                     <td className="px-6 py-3 text-slate-500">{cycleTime}</td>
-                    <td className="px-6 py-3 text-slate-500">{age}</td>
+                    <td className={`px-6 py-3 ${isStale ? "text-red-600 font-bold" : "text-slate-500"}`}>
+                      {age}
+                    </td>
                   </tr>
                 );
               })}

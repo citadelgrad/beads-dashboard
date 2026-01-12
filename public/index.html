@@ -206,7 +206,7 @@
                     Beads Performance Dashboard
                     </h1>
                     <p className="text-slate-500 text-sm">
-                    Live View • {parsedIssues.length} issues loaded
+                    Live View • {parsedIssues.filter(i => i.status !== 'tombstone').length} issues loaded
                     </p>
                 </div>
                 <div className="text-xs text-slate-400">

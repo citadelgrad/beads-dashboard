@@ -68,19 +68,58 @@ app.get('/api/data', async (req, res) => {
 app.post('/api/issues/:id', async (req, res) => {
   const { id } = req.params;
   const { description } = req.body;
-  
+
   // Write desc to temp file to avoid escaping issues
   const tempFile = path.join(__dirname, `desc-${Date.now()}.txt`);
   fs.writeFileSync(tempFile, description);
 
   exec(`bd update ${id} --body-file "${tempFile}"`, { cwd: projectRoot }, (error, stdout, stderr) => {
     fs.unlinkSync(tempFile); // cleanup
-    
+
     if (error) {
       console.error(`exec error: ${error}`);
       return res.status(500).json({ error: stderr || error.message });
     }
-    res.json({ success: true });
+
+    // Flush changes to JSONL file
+    exec('bd sync --flush-only', { cwd: projectRoot }, (syncError, syncStdout, syncStderr) => {
+      if (syncError) {
+        console.error(`sync error: ${syncError}`);
+      }
+
+      res.json({ success: true });
+
+      // Manually trigger refresh after sync
+      io.emit('refresh');
+    });
+  });
+});
+
+app.post('/api/issues/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!status) {
+    return res.status(400).json({ error: 'Status is required' });
+  }
+
+  exec(`bd update ${id} --status=${status}`, { cwd: projectRoot }, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`exec error: ${error}`);
+      return res.status(500).json({ error: stderr || error.message });
+    }
+
+    // Flush changes to JSONL file
+    exec('bd sync --flush-only', { cwd: projectRoot }, (syncError, syncStdout, syncStderr) => {
+      if (syncError) {
+        console.error(`sync error: ${syncError}`);
+      }
+
+      res.json({ success: true });
+
+      // Manually trigger refresh after sync
+      io.emit('refresh');
+    });
   });
 });
 

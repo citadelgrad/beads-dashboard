@@ -22,6 +22,9 @@ function TableView({ issues }) {
   // Dropdown state
   const [openDropdown, setOpenDropdown] = React.useState(null);
 
+  // Quick action state
+  const [updatingStatus, setUpdatingStatus] = React.useState(null);
+
   const PRIORITIES = ["Critical", "High", "Medium", "Low", "Lowest"];
 
   // Persist filters to localStorage
@@ -315,6 +318,36 @@ function TableView({ issues }) {
         <polyline points="6 9 12 15 18 9" />
       </svg>
     ),
+    Play: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+    ),
+    Check: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    ),
   };
 
   // Get unique values for filters
@@ -502,6 +535,27 @@ function TableView({ issues }) {
     }
   };
 
+  const handleStatusUpdate = async (issueId, newStatus) => {
+    setUpdatingStatus(issueId);
+    try {
+      const res = await fetch(`/api/issues/${issueId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to update status");
+      }
+      // Data refresh will happen via socket
+    } catch (err) {
+      console.error(err);
+      alert(`Failed to update status: ${err.message}`);
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
   // FilterDropdown component
   const FilterDropdown = ({ column, values, activeFilters, onToggle, onClear }) => {
     const isOpen = openDropdown === column;
@@ -668,6 +722,7 @@ function TableView({ issues }) {
                 <th className="px-6 py-3">Updated</th>
                 <th className="px-6 py-3">Cycle Time</th>
                 <th className="px-6 py-3">Age</th>
+                <th className="px-6 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -787,13 +842,37 @@ function TableView({ issues }) {
                     >
                       {age}
                     </td>
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-2">
+                        {issue.status !== "closed" && issue.status !== "in_progress" && (
+                          <button
+                            onClick={() => handleStatusUpdate(issue.id, "in_progress")}
+                            disabled={updatingStatus === issue.id}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                            title="Start Progress"
+                          >
+                            {Icons.Play}
+                          </button>
+                        )}
+                        {issue.status !== "closed" && (
+                          <button
+                            onClick={() => handleStatusUpdate(issue.id, "closed")}
+                            disabled={updatingStatus === issue.id}
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                            title="Close Issue"
+                          >
+                            {Icons.Check}
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {filteredIssues.length === 0 && (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="10"
                     className="px-6 py-8 text-center text-slate-400"
                   >
                     No issues found matching "{filterText}"

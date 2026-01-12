@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beads Continuous Flow Dashboard</title>
+    <script
+      src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"
+      crossorigin
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"
+      crossorigin
+    ></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      body {
+        background-color: #f8fafc;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .card {
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 1.25rem;
+        border: 1px solid #e2e8f0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const {
+        AreaChart,
+        Area,
+        BarChart,
+        Bar,
+        ScatterChart,
+        Scatter,
+        XAxis,
+        YAxis,
+        ZAxis,
+        CartesianGrid,
+        Tooltip,
+        ResponsiveContainer,
+        Legend,
+        Cell,
+        ReferenceLine,
+      } = window.Recharts;
+
+      function Dashboard() {
+        const [parsedIssues, setParsedIssues] = React.useState([]);
+        const [loading, setLoading] = React.useState(true);
+        const [error, setError] = React.useState(null);
+        const [activeTab, setActiveTab] = React.useState("dashboard");
+
+        const fetchData = async () => {
+          try {
+            const res = await fetch("/api/data");
+            if (!res.ok) throw new Error("Failed to fetch data");
+            const data = await res.json();
+            setParsedIssues(data);
+            setLoading(false);
+            setError(null);
+          } catch (err) {
+            console.error(err);
+            setError(err.message);
+            setLoading(false);
+          }
+        };
+
+        React.useEffect(() => {
+          fetchData();
+
+          const socket = io();
+          socket.on("refresh", () => {
+            console.log("Data changed, reloading...");
+            fetchData();
+          });
+
+          return () => socket.disconnect();
+        }, []);
+
+        const metrics = React.useMemo(() => {
+          if (!parsedIssues.length) return null;
+
+          const activeIssues = parsedIssues.filter(i => i.status !== 'tombstone');
+          const today = new Date();
+          const openIssues = activeIssues.filter((i) => i.status !== "closed");
+          const closedIssues = activeIssues.filter((i) => i.status === "closed" && i.updated_at);
+
+          // 1. Organize activity by date
+          const activityByDate = {};
+          let earliestDate = new Date();
+
+          activeIssues.forEach((i) => {
+            const cDateStr = i.created_at.split("T")[0];
+            const cDate = new Date(cDateStr);
+            if (cDate < earliestDate) earliestDate = cDate;
+
+            if (!activityByDate[cDateStr])
+              activityByDate[cDateStr] = { created: 0, closed: 0 };
+            activityByDate[cDateStr].created++;
+
+            if (i.status === "closed" && i.updated_at) {
+              const clDateStr = i.updated_at.split("T")[0];
+              if (!activityByDate[clDateStr])
+                activityByDate[clDateStr] = { created: 0, closed: 0 };
+              activityByDate[clDateStr].closed++;
+            }
+          });
+
+          // 2. Continuous Timeline Filling
+          const flowChartData = [];
+          let runCreated = 0;
+          let runClosed = 0;
+
+          let iterDate = new Date(earliestDate);
+          while (iterDate <= today) {
+            const dateStr = iterDate.toISOString().split("T")[0];
+            const dayActivity = activityByDate[dateStr] || {
+              created: 0,
+              closed: 0,
+            };
+
+            runCreated += dayActivity.created;
+            runClosed += dayActivity.closed;
+
+            flowChartData.push({
+              date: dateStr,
+              open: runCreated - runClosed,
+              closed: runClosed,
+              throughput: dayActivity.closed,
+            });
+
+            iterDate.setDate(iterDate.getDate() + 1);
+          }
+
+          // 3. Work Item Age Calculation
+          let totalAge = 0;
+          const ageBuckets = { "0-7d": 0, "8-14d": 0, "15-30d": 0, "30d+": 0 };
+          const agingWipData = [];
+
+          openIssues.forEach((i) => {
+            const ageInDays = Math.floor(
+              (today - new Date(i.created_at)) / (1000 * 60 * 60 * 24),
+            );
+            totalAge += ageInDays;
+            if (ageInDays <= 7) ageBuckets["0-7d"]++;
+            else if (ageInDays <= 14) ageBuckets["8-14d"]++;
+            else if (ageInDays <= 30) ageBuckets["15-30d"]++;
+            else ageBuckets["30d+"]++;
+
+            agingWipData.push({
+              id: i.id || "Unknown",
+              status: i.status || "Open",
+              age: ageInDays,
+              title: i.title || i.id || "Issue",
+            });
+          });
+
+          // 4. Lead Time Calculation
+          const leadTimeData = closedIssues.map((i) => {
+            const created = new Date(i.created_at);
+            const closed = new Date(i.updated_at);
+            const cycleTime = Math.max(
+              0,
+              Math.ceil((closed - created) / (1000 * 60 * 60 * 24))
+            );
+            return {
+              id: i.id || "Unknown",
+              closedDate: closed.getTime(), // Numeric for scatter X axis
+              closedDateStr: i.updated_at.split("T")[0],
+              cycleTime,
+              title: i.title || i.id || "Issue",
+            };
+          }).sort((a, b) => a.closedDate - b.closedDate);
+
+          return {
+            avgAge: openIssues.length
+              ? (totalAge / openIssues.length).toFixed(1)
+              : 0,
+            ageChartData: Object.entries(ageBuckets).map(([range, count]) => ({
+              range,
+              count,
+            })),
+            flowChartData,
+            openCount: openIssues.length,
+            agingWipData,
+            leadTimeData,
+          };
+        }, [parsedIssues]);
+
+        const CustomTooltip = ({ active, payload, label }) => {
+          if (active && payload && payload.length) {
+            const data = payload[0].payload;
+            return (
+              <div className="bg-white p-2 border border-slate-200 shadow-md rounded text-xs">
+                <p className="font-bold">{data.title}</p>
+                <p>{data.id}</p>
+                {data.cycleTime !== undefined && <p>Cycle Time: {data.cycleTime} days</p>}
+                {data.age !== undefined && <p>Age: {data.age} days</p>}
+                {data.closedDateStr && <p>Closed: {data.closedDateStr}</p>}
+                {data.status && <p>Status: {data.status}</p>}
+              </div>
+            );
+          }
+          return null;
+        };
+
+        return (
+          <div className="max-w-6xl mx-auto p-8">
+            <header className="mb-8">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">
+                    Beads Performance Dashboard
+                    </h1>
+                    <p className="text-slate-500 text-sm">
+                    Live View • {parsedIssues.length} issues loaded
+                    </p>
+                </div>
+                <div className="text-xs text-slate-400">
+                    {loading ? "Connecting..." : "Connected"}
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex space-x-4 border-b border-slate-200">
+                <button
+                  className={`pb-2 px-1 text-sm font-medium ${
+                    activeTab === "dashboard"
+                      ? "border-b-2 border-blue-500 text-blue-600"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                  onClick={() => setActiveTab("dashboard")}
+                >
+                  Dashboard
+                </button>
+                <button
+                  className={`pb-2 px-1 text-sm font-medium ${
+                    activeTab === "table"
+                      ? "border-b-2 border-blue-500 text-blue-600"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                  onClick={() => setActiveTab("table")}
+                >
+                  All Issues
+                </button>
+              </div>
+            </header>
+
+            {loading && !parsedIssues.length ? (
+               <div className="card py-20 text-center text-slate-400">
+                 Loading data...
+               </div>
+            ) : error ? (
+               <div className="card py-20 text-center text-red-500">
+                 {error}
+               </div>
+            ) : !metrics ? (
+              <div className="card border-dashed border-2 py-20 text-center text-slate-400">
+                No issues found in .beads directory.
+              </div>
+            ) : activeTab === "dashboard" ? (
+              <div className="space-y-6">
+                {/* Summary row */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="card border-l-4 border-l-orange-500">
+                    <div className="text-xs font-bold text-slate-400 uppercase">
+                      Avg Work Age
+                    </div>
+                    <div className="text-3xl font-black text-slate-800">
+                      {metrics.avgAge}{" "}
+                      <span className="text-sm font-normal text-slate-400">
+                        days
+                      </span>
+                    </div>
+                  </div>
+                  <div className="card border-l-4 border-l-blue-500">
+                    <div className="text-xs font-bold text-slate-400 uppercase">
+                      Active WIP
+                    </div>
+                    <div className="text-3xl font-black text-slate-800">
+                      {metrics.openCount}
+                    </div>
+                  </div>
+                  <div className="card border-l-4 border-l-red-500">
+                    <div className="text-xs font-bold text-slate-400 uppercase">
+                      Stale (30d+)
+                    </div>
+                    <div className="text-3xl font-black text-slate-800">
+                      {metrics.ageChartData[3].count}
+                    </div>
+                  </div>
+                  <div className="card border-l-4 border-l-emerald-500">
+                    <div className="text-xs font-bold text-slate-400 uppercase">
+                      Total Days Tracked
+                    </div>
+                    <div className="text-3xl font-black text-slate-800">
+                      {metrics.flowChartData.length}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lead Time Scatterplot */}
+                <div className="card h-[400px]">
+                  <h3 className="text-sm font-bold mb-6 text-slate-700">
+                    Lead Time Scatterplot (Cycle Time)
+                  </h3>
+                  <ResponsiveContainer width="100%" height="90%">
+                    <ScatterChart>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="closedDate"
+                        domain={['auto', 'auto']}
+                        name="Date Closed"
+                        tickFormatter={(unixTime) => new Date(unixTime).toLocaleDateString()}
+                        type="number"
+                        fontSize={10}
+                      />
+                      <YAxis dataKey="cycleTime" name="Cycle Time" unit="d" fontSize={10} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Scatter name="Issues" data={metrics.leadTimeData} fill="#8884d8" />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+
+                 {/* Aging WIP */}
+                 <div className="card h-[400px]">
+                  <h3 className="text-sm font-bold mb-6 text-slate-700">
+                    Aging Work in Progress
+                  </h3>
+                  <ResponsiveContainer width="100%" height="90%">
+                    <ScatterChart>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="status"
+                        type="category"
+                        name="Status"
+                        allowDuplicatedCategory={false}
+                        fontSize={12}
+                      />
+                      <YAxis dataKey="age" name="Age" unit="d" fontSize={10} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Scatter name="WIP" data={metrics.agingWipData} fill="#f59e0b" />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* CFD */}
+                <div className="card h-[400px]">
+                  <h3 className="text-sm font-bold mb-6 text-slate-700">
+                    Cumulative Flow Diagram
+                  </h3>
+                  <ResponsiveContainer width="100%" height="90%">
+                    <AreaChart data={metrics.flowChartData}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#f1f5f9"
+                      />
+                      <XAxis dataKey="date" fontSize={10} minTickGap={50} />
+                      <YAxis fontSize={10} />
+                      <Tooltip labelClassName="text-slate-800 font-bold" />
+                      <Legend
+                        verticalAlign="top"
+                        align="right"
+                        iconType="circle"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="open"
+                        stackId="1"
+                        stroke="#3b82f6"
+                        fill="#dbeafe"
+                        name="WIP (Open)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="closed"
+                        stackId="1"
+                        stroke="#10b981"
+                        fill="#dcfce7"
+                        name="Completed"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Age & Throughput Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="card h-80">
+                    <h3 className="text-sm font-bold mb-4">
+                      Work Age Distribution
+                    </h3>
+                    <ResponsiveContainer width="100%" height="90%">
+                      <BarChart data={metrics.ageChartData}>
+                        <XAxis dataKey="range" fontSize={12} />
+                        <YAxis fontSize={12} />
+                        <Tooltip cursor={{ fill: "#f8fafc" }} />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                          {metrics.ageChartData.map((e, i) => (
+                            <Cell
+                              key={i}
+                              fill={
+                                ["#10b981", "#3b82f6", "#f59e0b", "#ef4444"][i]
+                              }
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="card h-80">
+                    <h3 className="text-sm font-bold mb-4">Daily Throughput</h3>
+                    <ResponsiveContainer width="100%" height="90%">
+                      <BarChart data={metrics.flowChartData}>
+                        <XAxis dataKey="date" fontSize={10} minTickGap={50} />
+                        <YAxis fontSize={10} />
+                        <Tooltip />
+                        <Bar
+                          dataKey="throughput"
+                          fill="#64748b"
+                          radius={[2, 2, 0, 0]}
+                          name="Closed"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-medium border-b">
+                      <tr>
+                        <th className="px-6 py-3">ID</th>
+                        <th className="px-6 py-3">Title</th>
+                        <th className="px-6 py-3">Status</th>
+                        <th className="px-6 py-3">Created</th>
+                        <th className="px-6 py-3">Updated</th>
+                        <th className="px-6 py-3">Age / Cycle Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {parsedIssues.filter(i => i.status !== 'tombstone').map((issue) => {
+                        const created = new Date(issue.created_at);
+                        const updated = issue.updated_at ? new Date(issue.updated_at) : null;
+                        const isClosed = issue.status === 'closed';
+                        const today = new Date();
+                        
+                        let timeMetric = '-';
+                        if (isClosed && updated) {
+                            const diff = Math.ceil((updated - created) / (1000 * 60 * 60 * 24));
+                            timeMetric = `${diff}d (Cycle)`;
+                        } else {
+                            const diff = Math.floor((today - created) / (1000 * 60 * 60 * 24));
+                            timeMetric = `${diff}d (Age)`;
+                        }
+
+                        return (
+                          <tr key={issue.id} className="hover:bg-slate-50">
+                            <td className="px-6 py-3 font-mono text-slate-500">{issue.id}</td>
+                            <td className="px-6 py-3 font-medium text-slate-900">{issue.title || "Untitled"}</td>
+                            <td className="px-6 py-3">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                ${issue.status === 'closed' ? 'bg-green-100 text-green-800' : 
+                                  issue.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                  issue.status === 'blocked' ? 'bg-red-100 text-red-800' :
+                                  issue.status === 'deferred' ? 'bg-amber-100 text-amber-800' :
+                                  issue.status === 'pinned' ? 'bg-purple-100 text-purple-800' :
+                                  issue.status === 'hooked' ? 'bg-indigo-100 text-indigo-800' :
+                                  'bg-slate-100 text-slate-800'}`}>
+                                {issue.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-slate-500">{created.toLocaleDateString()}</td>
+                            <td className="px-6 py-3 text-slate-500">{updated ? updated.toLocaleDateString() : '-'}</td>
+                            <td className="px-6 py-3 text-slate-500">{timeMetric}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<Dashboard />);
+    </script>
+  </body>
+</html>

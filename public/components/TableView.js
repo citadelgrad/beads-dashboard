@@ -5,7 +5,37 @@ function TableView({ issues }) {
   const [editValue, setEditValue] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
-  const PRIORITIES = ["Critical", "High", "Medium", "Low", "Very Low"];
+  // Column filters with localStorage persistence
+  const [statusFilter, setStatusFilter] = React.useState(() => {
+    const saved = localStorage.getItem('beads-filter-status');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [typeFilter, setTypeFilter] = React.useState(() => {
+    const saved = localStorage.getItem('beads-filter-type');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [priorityFilter, setPriorityFilter] = React.useState(() => {
+    const saved = localStorage.getItem('beads-filter-priority');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Dropdown state
+  const [openDropdown, setOpenDropdown] = React.useState(null);
+
+  const PRIORITIES = ["Critical", "High", "Medium", "Low", "Lowest"];
+
+  // Persist filters to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('beads-filter-status', JSON.stringify(statusFilter));
+  }, [statusFilter]);
+
+  React.useEffect(() => {
+    localStorage.setItem('beads-filter-type', JSON.stringify(typeFilter));
+  }, [typeFilter]);
+
+  React.useEffect(() => {
+    localStorage.setItem('beads-filter-priority', JSON.stringify(priorityFilter));
+  }, [priorityFilter]);
 
   // Icons
   const Icons = {
@@ -76,7 +106,7 @@ function TableView({ issues }) {
         <polyline points="19 12 12 19 5 12" />
       </svg>
     ),
-    "Very Low": (
+    "Lowest": (
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="14"
@@ -238,14 +268,99 @@ function TableView({ issues }) {
         <path d="M16 6H3" />
       </svg>
     ),
+    Filter: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+      </svg>
+    ),
+    FilterX: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
+        <path d="m22 3-5 5" />
+        <path d="m17 3 5 5" />
+      </svg>
+    ),
+    ChevronDown: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    ),
   };
 
-  // Filter issues based on tombstone status AND search text
+  // Get unique values for filters
+  const uniqueStatuses = React.useMemo(() => {
+    const statuses = new Set();
+    issues.forEach(i => {
+      if (i.status !== 'tombstone') statuses.add(i.status);
+    });
+    return Array.from(statuses).sort();
+  }, [issues]);
+
+  const uniqueTypes = React.useMemo(() => {
+    const types = new Set();
+    issues.forEach(i => {
+      if (i.status !== 'tombstone' && i.issue_type) types.add(i.issue_type);
+    });
+    return Array.from(types).sort();
+  }, [issues]);
+
+  const uniquePriorities = React.useMemo(() => {
+    const priorities = new Set();
+    issues.forEach(i => {
+      if (i.status !== 'tombstone' && i.priority !== undefined) {
+        priorities.add(i.priority);
+      }
+    });
+    return Array.from(priorities).sort((a, b) => a - b);
+  }, [issues]);
+
+  // Filter issues based on all criteria
   const filteredIssues = issues.filter((issue) => {
     // 1. Exclude deleted issues
     if (issue.status === "tombstone") return false;
 
-    // 2. Apply text filter if present
+    // 2. Apply column filters
+    if (statusFilter.length > 0 && !statusFilter.includes(issue.status)) {
+      return false;
+    }
+    if (typeFilter.length > 0 && !typeFilter.includes(issue.issue_type)) {
+      return false;
+    }
+    if (priorityFilter.length > 0 && !priorityFilter.includes(issue.priority)) {
+      return false;
+    }
+
+    // 3. Apply text filter if present
     if (!filterText) return true;
 
     const searchLower = filterText.toLowerCase();
@@ -274,7 +389,7 @@ function TableView({ issues }) {
       case 3:
         return "bg-green-100 text-green-800 border border-green-200"; // Low
       case 4:
-        return "bg-slate-100 text-slate-800 border border-slate-200"; // Very Low
+        return "bg-slate-100 text-slate-800 border border-slate-200"; // Lowest
       default:
         return "bg-slate-100 text-slate-800 border border-slate-200";
     }
@@ -310,6 +425,52 @@ function TableView({ issues }) {
     // Could add a toast here, but for now we'll rely on user action
   };
 
+  // Filter management functions
+  const toggleFilterValue = (filterType, value) => {
+    const setterMap = {
+      status: setStatusFilter,
+      type: setTypeFilter,
+      priority: setPriorityFilter,
+    };
+    const filterMap = {
+      status: statusFilter,
+      type: typeFilter,
+      priority: priorityFilter,
+    };
+
+    const currentFilter = filterMap[filterType];
+    const setter = setterMap[filterType];
+
+    if (currentFilter.includes(value)) {
+      setter(currentFilter.filter(v => v !== value));
+    } else {
+      setter([...currentFilter, value]);
+    }
+  };
+
+  const clearFilter = (filterType) => {
+    if (filterType === 'status') setStatusFilter([]);
+    else if (filterType === 'type') setTypeFilter([]);
+    else if (filterType === 'priority') setPriorityFilter([]);
+  };
+
+  const clearAllFilters = () => {
+    setStatusFilter([]);
+    setTypeFilter([]);
+    setPriorityFilter([]);
+  };
+
+  const hasActiveFilters = statusFilter.length > 0 || typeFilter.length > 0 || priorityFilter.length > 0;
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = () => setOpenDropdown(null);
+    if (openDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openDropdown]);
+
   const openDescription = (issue) => {
     setActiveDescription(issue);
     setEditValue(issue.description || "");
@@ -339,6 +500,80 @@ function TableView({ issues }) {
       alert("Failed to save description");
       setSaving(false);
     }
+  };
+
+  // FilterDropdown component
+  const FilterDropdown = ({ column, values, activeFilters, onToggle, onClear }) => {
+    const isOpen = openDropdown === column;
+    const hasFilters = activeFilters.length > 0;
+
+    const getDisplayValue = (value) => {
+      if (column === 'priority') {
+        return PRIORITIES[value] || value;
+      }
+      return value;
+    };
+
+    return (
+      <div className="relative inline-block">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpenDropdown(isOpen ? null : column);
+          }}
+          className={`ml-2 p-1 rounded transition-colors ${
+            hasFilters
+              ? 'text-blue-600 hover:text-blue-700 bg-blue-50'
+              : 'text-slate-400 hover:text-slate-600'
+          }`}
+          title={hasFilters ? `Filtered (${activeFilters.length})` : 'Filter'}
+        >
+          {hasFilters ? Icons.Filter : Icons.ChevronDown}
+        </button>
+
+        {isOpen && (
+          <div
+            className="absolute left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 min-w-[160px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-2 border-b border-slate-100 flex justify-between items-center">
+              <span className="text-xs font-medium text-slate-600 uppercase">Filter</span>
+              {hasFilters && (
+                <button
+                  onClick={() => onClear()}
+                  className="text-xs text-blue-600 hover:text-blue-700"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {values.map((value) => {
+                const isSelected = activeFilters.includes(value);
+                const displayValue = getDisplayValue(value);
+
+                return (
+                  <label
+                    key={value}
+                    className="flex items-center px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggle(value)}
+                      className="mr-2 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className={`capitalize ${isSelected ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
+                      {displayValue}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -371,15 +606,64 @@ function TableView({ issues }) {
           </div>
         </div>
 
+        {/* Clear All Filters Button */}
+        {hasActiveFilters && (
+          <div className="px-4 py-2 border-b border-slate-200 bg-blue-50/50 flex items-center justify-between">
+            <span className="text-xs text-slate-600">
+              {statusFilter.length + typeFilter.length + priorityFilter.length} filter(s) active
+            </span>
+            <button
+              onClick={clearAllFilters}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+            >
+              {Icons.FilterX}
+              Clear All Filters
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-600 font-medium border-b">
               <tr>
                 <th className="px-6 py-3">ID</th>
                 <th className="px-6 py-3">Title</th>
-                <th className="px-6 py-3">Type</th>
-                <th className="px-6 py-3">Priority</th>
-                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">
+                  <div className="flex items-center">
+                    Type
+                    <FilterDropdown
+                      column="type"
+                      values={uniqueTypes}
+                      activeFilters={typeFilter}
+                      onToggle={(value) => toggleFilterValue('type', value)}
+                      onClear={() => clearFilter('type')}
+                    />
+                  </div>
+                </th>
+                <th className="px-6 py-3">
+                  <div className="flex items-center">
+                    Priority
+                    <FilterDropdown
+                      column="priority"
+                      values={uniquePriorities}
+                      activeFilters={priorityFilter}
+                      onToggle={(value) => toggleFilterValue('priority', value)}
+                      onClear={() => clearFilter('priority')}
+                    />
+                  </div>
+                </th>
+                <th className="px-6 py-3">
+                  <div className="flex items-center">
+                    Status
+                    <FilterDropdown
+                      column="status"
+                      values={uniqueStatuses}
+                      activeFilters={statusFilter}
+                      onToggle={(value) => toggleFilterValue('status', value)}
+                      onClear={() => clearFilter('status')}
+                    />
+                  </div>
+                </th>
                 <th className="px-6 py-3">Created</th>
                 <th className="px-6 py-3">Updated</th>
                 <th className="px-6 py-3">Cycle Time</th>

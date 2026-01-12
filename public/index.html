@@ -403,20 +403,20 @@
                         iconType="circle"
                       />
                       <Area
-                        type="monotone"
-                        dataKey="open"
-                        stackId="1"
-                        stroke="#3b82f6"
-                        fill="#dbeafe"
-                        name="WIP (Open)"
-                      />
-                      <Area
-                        type="monotone"
+                        type="linear"
                         dataKey="closed"
                         stackId="1"
                         stroke="#10b981"
                         fill="#dcfce7"
                         name="Completed"
+                      />
+                      <Area
+                        type="linear"
+                        dataKey="open"
+                        stackId="1"
+                        stroke="#3b82f6"
+                        fill="#dbeafe"
+                        name="WIP (Open)"
                       />
                     </AreaChart>
                   </ResponsiveContainer>

@@ -197,12 +197,24 @@
           };
         }, [parsedIssues]);
 
+        const projectName = React.useMemo(() => {
+          if (!parsedIssues.length) return "";
+          // Attempt to extract project prefix from the first issue ID (e.g. beads-dashboard-123 -> beads-dashboard)
+          const firstId = parsedIssues[0].id;
+          const lastDashIndex = firstId.lastIndexOf('-');
+          if (lastDashIndex > 0) {
+             return firstId.substring(0, lastDashIndex);
+          }
+          return "";
+        }, [parsedIssues]);
+
         return (
           <div className="max-w-6xl mx-auto p-8">
             <header className="mb-8">
               <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">
+                    {projectName && <span className="text-slate-500 font-normal">{projectName} / </span>}
                     Beads Performance Dashboard
                     </h1>
                     <p className="text-slate-500 text-sm">

@@ -1,6 +1,9 @@
 function TableView({ issues }) {
   const [filterText, setFilterText] = React.useState("");
   const [activeDescription, setActiveDescription] = React.useState(null);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editValue, setEditValue] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
 
   const PRIORITIES = ["Critical", "High", "Medium", "Low", "Very Low"];
 
@@ -125,6 +128,11 @@ function TableView({ issues }) {
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
         </svg>
+    ),
+    Edit: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+        </svg>
     )
   };
 
@@ -180,6 +188,37 @@ function TableView({ issues }) {
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
     // Could add a toast here, but for now we'll rely on user action
+  };
+
+  const openDescription = (issue) => {
+      setActiveDescription(issue);
+      setEditValue(issue.description || "");
+      setIsEditing(false);
+  };
+
+  const closeDescription = () => {
+      setActiveDescription(null);
+      setIsEditing(false);
+      setSaving(false);
+  };
+
+  const handleSave = async () => {
+      if (!activeDescription) return;
+      setSaving(true);
+      try {
+          const res = await fetch(`/api/issues/${activeDescription.id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ description: editValue })
+          });
+          if (!res.ok) throw new Error("Failed to update");
+          // Close modal, data refresh will happen via socket
+          closeDescription();
+      } catch (err) {
+          console.error(err);
+          alert("Failed to save description");
+          setSaving(false);
+      }
   };
 
   return (
@@ -278,8 +317,8 @@ function TableView({ issues }) {
                         <div className="flex items-center gap-2">
                             <span>{issue.title || "Untitled"}</span>
                             <button 
-                                onClick={() => setActiveDescription(issue)}
-                                className="text-slate-300 hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100"
+                                onClick={() => openDescription(issue)}
+                                className="ml-auto text-slate-300 hover:text-blue-600 transition-colors"
                                 title="View Description"
                             >
                                 {Icons.PanelTopOpen}
@@ -368,31 +407,70 @@ function TableView({ issues }) {
                         <h3 className="text-xl font-bold text-slate-900">{activeDescription.title}</h3>
                         <p className="text-sm text-slate-500 font-mono mt-1">{activeDescription.id}</p>
                     </div>
-                    <button 
-                        onClick={() => setActiveDescription(null)}
-                        className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-                    >
-                        {Icons.Close}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {!isEditing && (
+                            <button 
+                                onClick={() => setIsEditing(true)}
+                                className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                                title="Edit Description"
+                            >
+                                {Icons.Edit}
+                            </button>
+                        )}
+                        <button 
+                            onClick={closeDescription}
+                            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                        >
+                            {Icons.Close}
+                        </button>
+                    </div>
                 </div>
-                <div className="p-6 overflow-y-auto">
-                    {activeDescription.description ? (
-                        <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">
-                            {activeDescription.description}
-                        </div>
+                <div className="p-6 overflow-y-auto flex-1">
+                    {isEditing ? (
+                        <textarea 
+                            className="w-full h-64 p-3 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            placeholder="Enter issue description..."
+                        />
                     ) : (
-                        <div className="text-slate-400 italic text-center py-8">
-                            No description provided for this issue.
-                        </div>
+                        activeDescription.description ? (
+                            <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">
+                                {activeDescription.description}
+                            </div>
+                        ) : (
+                            <div className="text-slate-400 italic text-center py-8">
+                                No description provided for this issue.
+                            </div>
+                        )
                     )}
                 </div>
-                <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-end">
-                    <button 
-                        onClick={() => setActiveDescription(null)}
-                        className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
-                    >
-                        Close
-                    </button>
+                <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-end gap-3">
+                    {isEditing ? (
+                        <>
+                            <button 
+                                onClick={() => setIsEditing(false)}
+                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
+                                disabled={saving}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSave}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                disabled={saving}
+                            >
+                                {saving ? "Saving..." : "Save Changes"}
+                            </button>
+                        </>
+                    ) : (
+                        <button 
+                            onClick={closeDescription}
+                            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
+                        >
+                            Close
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

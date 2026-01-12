@@ -7,6 +7,8 @@ const path = require('path');
 const readline = require('readline');
 const minimist = require('minimist');
 
+const { exec } = require('child_process');
+
 const args = minimist(process.argv.slice(2));
 const projectRoot = args._[0] || process.cwd();
 const PORT = args.port || 3000;
@@ -14,6 +16,8 @@ const PORT = args.port || 3000;
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
+app.use(express.json());
 
 // Middleware to serve static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -26,28 +30,24 @@ console.log(`Watching directory: ${projectRoot}`);
 
 // Helper to read all JSONL files in .beads
 async function readBeadsData() {
-  if (!fs.existsSync(beadsDir)) {
+  const issuesFile = path.join(beadsDir, 'issues.jsonl');
+  if (!fs.existsSync(issuesFile)) {
     return [];
   }
 
-  const files = fs.readdirSync(beadsDir).filter(f => f.endsWith('.jsonl'));
   const allIssues = [];
+  const fileStream = fs.createReadStream(issuesFile);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity
+  });
 
-  for (const file of files) {
-    const filePath = path.join(beadsDir, file);
-    const fileStream = fs.createReadStream(filePath);
-    const rl = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity
-    });
-
-    for await (const line of rl) {
-      if (line.trim()) {
-        try {
-          allIssues.push(JSON.parse(line));
-        } catch (e) {
-          console.error(`Error parsing line in ${file}:`, e.message);
-        }
+  for await (const line of rl) {
+    if (line.trim()) {
+      try {
+        allIssues.push(JSON.parse(line));
+      } catch (e) {
+        console.error(`Error parsing line in issues.jsonl:`, e.message);
       }
     }
   }
@@ -63,6 +63,25 @@ app.get('/api/data', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Failed to read data' });
   }
+});
+
+app.post('/api/issues/:id', async (req, res) => {
+  const { id } = req.params;
+  const { description } = req.body;
+  
+  // Write desc to temp file to avoid escaping issues
+  const tempFile = path.join(__dirname, `desc-${Date.now()}.txt`);
+  fs.writeFileSync(tempFile, description);
+
+  exec(`bd update ${id} --body-file "${tempFile}"`, { cwd: projectRoot }, (error, stdout, stderr) => {
+    fs.unlinkSync(tempFile); // cleanup
+    
+    if (error) {
+      console.error(`exec error: ${error}`);
+      return res.status(500).json({ error: stderr || error.message });
+    }
+    res.json({ success: true });
+  });
 });
 
 // Watch for changes

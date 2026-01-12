@@ -1,4 +1,4 @@
-# Beads Performance Dashboard
+ # Beads Performance Dashboard
 
 A local, real-time lean metrics dashboard for [Beads](https://github.com/steveyegge/beads). This tool visualizes your Beads issue database to help you understand your flow, identify bottlenecks, and track continuous improvement metrics.
 

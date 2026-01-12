@@ -38,36 +38,36 @@ function DashboardView({ metrics }) {
       {/* Summary row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="card border-l-4 border-l-orange-500">
-          <div className="text-xs font-bold text-slate-400 uppercase">
-            Avg Work Age
-          </div>
           <div className="text-3xl font-black text-slate-800">
             {metrics.avgAge}{" "}
             <span className="text-sm font-normal text-slate-400">days</span>
           </div>
+          <div className="text-sm font-bold text-slate-400 uppercase">
+            Avg Work Age
+          </div>
         </div>
         <div className="card border-l-4 border-l-blue-500">
-          <div className="text-xs font-bold text-slate-400 uppercase">
-            Active WIP
-          </div>
           <div className="text-3xl font-black text-slate-800">
             {metrics.openCount}
           </div>
+          <div className="text-sm font-bold text-slate-400 uppercase">
+            Active WIP
+          </div>
         </div>
         <div className="card border-l-4 border-l-red-500">
-          <div className="text-xs font-bold text-slate-400 uppercase">
-            Stale (30d+)
-          </div>
           <div className="text-3xl font-black text-slate-800">
             {metrics.ageChartData[3].count}
           </div>
+          <div className="text-sm font-bold text-slate-400 uppercase">
+            Stale (30d+)
+          </div>
         </div>
         <div className="card border-l-4 border-l-emerald-500">
-          <div className="text-xs font-bold text-slate-400 uppercase">
-            Total Days Tracked
-          </div>
           <div className="text-3xl font-black text-slate-800">
             {metrics.flowChartData.length}
+          </div>
+          <div className="text-sm font-bold text-slate-400 uppercase">
+            Total Days Tracked
           </div>
         </div>
       </div>

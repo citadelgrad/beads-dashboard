@@ -561,12 +561,13 @@ function TableView({ issues }) {
                   placeholder="Enter issue description..."
                 />
               ) : activeDescription.description ? (
-                <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">
-                  {activeDescription.description}
-                </div>
+                <div 
+                  className="prose prose-sm max-w-none text-slate-700"
+                  dangerouslySetInnerHTML={{ __html: marked.parse(activeDescription.description) }}
+                />
               ) : (
                 <div className="text-slate-400 italic text-center py-8">
-                  No description provided for this issue.
+                  ⚠️ No description provided for this issue.
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-function TableView({ issues }) {
+  function TableView({ issues }) {
   return (
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
@@ -10,7 +10,8 @@ function TableView({ issues }) {
               <th className="px-6 py-3">Status</th>
               <th className="px-6 py-3">Created</th>
               <th className="px-6 py-3">Updated</th>
-              <th className="px-6 py-3">Age / Cycle Time</th>
+              <th className="px-6 py-3">Cycle Time</th>
+              <th className="px-6 py-3">Age</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -24,17 +25,19 @@ function TableView({ issues }) {
                 const isClosed = issue.status === "closed";
                 const today = new Date();
 
-                let timeMetric = "-";
+                let cycleTime = "-";
+                let age = "-";
+
                 if (isClosed && updated) {
                   const diff = Math.ceil(
                     (updated - created) / (1000 * 60 * 60 * 24)
                   );
-                  timeMetric = `${diff}d (Cycle)`;
+                  cycleTime = `${diff}d`;
                 } else {
                   const diff = Math.floor(
                     (today - created) / (1000 * 60 * 60 * 24)
                   );
-                  timeMetric = `${diff}d (Age)`;
+                  age = `${diff}d`;
                 }
 
                 return (
@@ -73,7 +76,8 @@ function TableView({ issues }) {
                     <td className="px-6 py-3 text-slate-500">
                       {updated ? updated.toLocaleDateString() : "-"}
                     </td>
-                    <td className="px-6 py-3 text-slate-500">{timeMetric}</td>
+                    <td className="px-6 py-3 text-slate-500">{cycleTime}</td>
+                    <td className="px-6 py-3 text-slate-500">{age}</td>
                   </tr>
                 );
               })}

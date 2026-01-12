@@ -125,15 +125,119 @@ function TableView({ issues }) {
       </svg>
     ),
     Close: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-        </svg>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>
     ),
     Edit: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-        </svg>
-    )
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+      </svg>
+    ),
+    Bug: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="m8 2 1.88 1.88" />
+        <path d="M14.12 3.88 16 2" />
+        <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+        <path d="M12 20c-3.31 0-6-2.69-6-6v-3h12v3c0 3.31-2.69 6-6 6Z" />
+        <path d="M12 11v9" />
+        <path d="M6 13H2" />
+        <path d="M22 13h-4" />
+        <path d="M14.67 17.15 17.5 19.13" />
+        <path d="m6.5 19.13 2.83-1.98" />
+        <path d="m17.5 8.87-2.83 1.98" />
+        <path d="m6.5 8.87 2.83 1.98" />
+      </svg>
+    ),
+    Box: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+        <path d="m3.3 7 8.7 5 8.7-5" />
+        <path d="M12 22V12" />
+      </svg>
+    ),
+    Boxes: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.71a2 2 0 0 0 2.06 0l3-1.71a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71l-3-1.71a2 2 0 0 0-2.06 0l-3 1.71Z" />
+        <path d="m3 14.26 3 1.71 3-1.71" />
+        <path d="M6 21.21v-5.24" />
+        <path d="M13.26 12.83a2 2 0 0 0-1.26 1.8v3.24a2 2 0 0 0 .97 1.71l3 1.71a2 2 0 0 0 2.06 0l3-1.71a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71l-3-1.71a2 2 0 0 0-2.06 0l-2.74 1.57Z" />
+        <path d="m13 14.26 3 1.71 3-1.71" />
+        <path d="M16 21.21v-5.24" />
+        <path d="M7.97 4.42A2 2 0 0 0 7 6.13v3.24a2 2 0 0 0 .97 1.71l3 1.71a2 2 0 0 0 2.06 0l3-1.71a2 2 0 0 0 .97-1.71V6.13a2 2 0 0 0-.97-1.71l-3-1.71a2 2 0 0 0-2.06 0l-3 1.71Z" />
+        <path d="m8 5.76 3 1.71 3-1.71" />
+        <path d="M11 12.71V7.47" />
+      </svg>
+    ),
+    ListCheck: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M11 18H3" />
+        <path d="m15 18 2 2 4-4" />
+        <path d="M16 12H3" />
+        <path d="M16 6H3" />
+      </svg>
+    ),
   };
 
   // Filter issues based on tombstone status AND search text
@@ -176,13 +280,29 @@ function TableView({ issues }) {
     }
   };
 
-  const getTypeStyle = (type) => {
+  const getTypeInfo = (type) => {
     const t = (type || "").toLowerCase();
     if (t === "bug")
-      return "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20";
-    if (t === "feature" || t === "epic")
-      return "bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-700/10";
-    return "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10"; // Default (Task)
+      return {
+        class: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20",
+        icon: Icons.Bug,
+      };
+    if (t === "feature")
+      return {
+        class:
+          "bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-700/10",
+        icon: Icons.Box,
+      };
+    if (t === "epic")
+      return {
+        class:
+          "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-700/10",
+        icon: Icons.Boxes,
+      };
+    return {
+      class: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10",
+      icon: Icons.ListCheck,
+    }; // Default (Task)
   };
 
   const handleCopy = (text) => {
@@ -191,34 +311,34 @@ function TableView({ issues }) {
   };
 
   const openDescription = (issue) => {
-      setActiveDescription(issue);
-      setEditValue(issue.description || "");
-      setIsEditing(false);
+    setActiveDescription(issue);
+    setEditValue(issue.description || "");
+    setIsEditing(false);
   };
 
   const closeDescription = () => {
-      setActiveDescription(null);
-      setIsEditing(false);
-      setSaving(false);
+    setActiveDescription(null);
+    setIsEditing(false);
+    setSaving(false);
   };
 
   const handleSave = async () => {
-      if (!activeDescription) return;
-      setSaving(true);
-      try {
-          const res = await fetch(`/api/issues/${activeDescription.id}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ description: editValue })
-          });
-          if (!res.ok) throw new Error("Failed to update");
-          // Close modal, data refresh will happen via socket
-          closeDescription();
-      } catch (err) {
-          console.error(err);
-          alert("Failed to save description");
-          setSaving(false);
-      }
+    if (!activeDescription) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/issues/${activeDescription.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: editValue }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      // Close modal, data refresh will happen via socket
+      closeDescription();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save description");
+      setSaving(false);
+    }
   };
 
   return (
@@ -294,43 +414,46 @@ function TableView({ issues }) {
                 const priorityLabel =
                   PRIORITIES[issue.priority] || issue.priority;
                 const PriorityIcon = Icons[priorityLabel] || null;
-                
+
                 // Remove prefix from ID (e.g. beads-dashboard-123 -> 123)
                 // Assumes format is prefix-hash, so taking last segment
-                const shortId = issue.id.includes('-') ? issue.id.split('-').pop() : issue.id;
+                const shortId = issue.id.includes("-")
+                  ? issue.id.split("-").pop()
+                  : issue.id;
+
+                const typeInfo = getTypeInfo(issue.issue_type);
 
                 return (
                   <tr key={issue.id} className="hover:bg-slate-50 group">
                     <td className="px-6 py-3 font-mono text-slate-500 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                            <span>{shortId}</span>
-                            <button 
-                                onClick={() => handleCopy(issue.id)}
-                                className="text-slate-300 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100"
-                                title="Copy full ID"
-                            >
-                                {Icons.Copy}
-                            </button>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span>{shortId}</span>
+                        <button
+                          onClick={() => handleCopy(issue.id)}
+                          className="text-slate-300 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Copy full ID"
+                        >
+                          {Icons.Copy}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-3 font-medium text-slate-900">
-                        <div className="flex items-center gap-2">
-                            <span>{issue.title || "Untitled"}</span>
-                            <button 
-                                onClick={() => openDescription(issue)}
-                                className="ml-auto text-slate-300 hover:text-blue-600 transition-colors"
-                                title="View Description"
-                            >
-                                {Icons.PanelTopOpen}
-                            </button>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span>{issue.title || "Untitled"}</span>
+                        <button
+                          onClick={() => openDescription(issue)}
+                          className="ml-auto text-slate-300 hover:text-blue-600 transition-colors"
+                          title="View Description"
+                        >
+                          {Icons.PanelTopOpen}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-3">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeStyle(
-                          issue.issue_type
-                        )}`}
+                        className={`capitalize inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${typeInfo.class}`}
                       >
+                        {typeInfo.icon}
                         {issue.issue_type}
                       </span>
                     </td>
@@ -401,78 +524,80 @@ function TableView({ issues }) {
       {/* Description Modal */}
       {activeDescription && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-start p-6 border-b border-slate-100">
-                    <div>
-                        <h3 className="text-xl font-bold text-slate-900">{activeDescription.title}</h3>
-                        <p className="text-sm text-slate-500 font-mono mt-1">{activeDescription.id}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {!isEditing && (
-                            <button 
-                                onClick={() => setIsEditing(true)}
-                                className="text-slate-400 hover:text-blue-600 transition-colors p-1"
-                                title="Edit Description"
-                            >
-                                {Icons.Edit}
-                            </button>
-                        )}
-                        <button 
-                            onClick={closeDescription}
-                            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-                        >
-                            {Icons.Close}
-                        </button>
-                    </div>
-                </div>
-                <div className="p-6 overflow-y-auto flex-1">
-                    {isEditing ? (
-                        <textarea 
-                            className="w-full h-64 p-3 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            placeholder="Enter issue description..."
-                        />
-                    ) : (
-                        activeDescription.description ? (
-                            <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">
-                                {activeDescription.description}
-                            </div>
-                        ) : (
-                            <div className="text-slate-400 italic text-center py-8">
-                                No description provided for this issue.
-                            </div>
-                        )
-                    )}
-                </div>
-                <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-end gap-3">
-                    {isEditing ? (
-                        <>
-                            <button 
-                                onClick={() => setIsEditing(false)}
-                                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
-                                disabled={saving}
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                onClick={handleSave}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                disabled={saving}
-                            >
-                                {saving ? "Saving..." : "Save Changes"}
-                            </button>
-                        </>
-                    ) : (
-                        <button 
-                            onClick={closeDescription}
-                            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
-                        >
-                            Close
-                        </button>
-                    )}
-                </div>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start p-6 border-b border-slate-100">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">
+                  {activeDescription.title}
+                </h3>
+                <p className="text-sm text-slate-500 font-mono mt-1">
+                  {activeDescription.id}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                    title="Edit Description"
+                  >
+                    {Icons.Edit}
+                  </button>
+                )}
+                <button
+                  onClick={closeDescription}
+                  className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                >
+                  {Icons.Close}
+                </button>
+              </div>
             </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              {isEditing ? (
+                <textarea
+                  className="w-full h-64 p-3 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  placeholder="Enter issue description..."
+                />
+              ) : activeDescription.description ? (
+                <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">
+                  {activeDescription.description}
+                </div>
+              ) : (
+                <div className="text-slate-400 italic text-center py-8">
+                  No description provided for this issue.
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-end gap-3">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    disabled={saving}
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={closeDescription}
+                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </>

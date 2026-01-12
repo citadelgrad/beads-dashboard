@@ -3,6 +3,93 @@ function TableView({ issues }) {
 
   const PRIORITIES = ["Critical", "High", "Medium", "Low", "Very Low"];
 
+  // Icons
+  const Icons = {
+    Critical: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+    ),
+    High: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    ),
+    Medium: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+    ),
+    Low: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <polyline points="19 12 12 19 5 12" />
+      </svg>
+    ),
+    "Very Low": (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M8 18L12 22L16 18" />
+        <path d="M12 2V22" />
+      </svg>
+    ),
+  };
+
   // Filter issues based on tombstone status AND search text
   const filteredIssues = issues.filter((issue) => {
     // 1. Exclude deleted issues
@@ -15,8 +102,10 @@ function TableView({ issues }) {
     const idMatch = issue.id.toLowerCase().includes(searchLower);
     const titleMatch = (issue.title || "").toLowerCase().includes(searchLower);
     const statusMatch = issue.status.toLowerCase().includes(searchLower);
-    const typeMatch = (issue.issue_type || "").toLowerCase().includes(searchLower);
-    
+    const typeMatch = (issue.issue_type || "").toLowerCase().includes(
+      searchLower
+    );
+
     // Map priority index to string for searching
     const priorityLabel = PRIORITIES[issue.priority] || "";
     const priorityMatch = priorityLabel.toLowerCase().includes(searchLower);
@@ -26,19 +115,27 @@ function TableView({ issues }) {
 
   const getPriorityStyle = (priority) => {
     switch (priority) {
-      case 0: return "bg-red-100 text-red-800"; // Critical
-      case 1: return "bg-orange-100 text-orange-800"; // High
-      case 2: return "bg-yellow-100 text-yellow-800"; // Medium
-      case 3: return "bg-green-100 text-green-800"; // Low
-      case 4: return "bg-slate-100 text-slate-800"; // Very Low
-      default: return "bg-slate-100 text-slate-800";
+      case 0:
+        return "bg-red-100 text-red-800 border border-red-200"; // Critical
+      case 1:
+        return "bg-orange-100 text-orange-800 border border-orange-200"; // High
+      case 2:
+        return "bg-yellow-100 text-yellow-800 border border-yellow-200"; // Medium
+      case 3:
+        return "bg-green-100 text-green-800 border border-green-200"; // Low
+      case 4:
+        return "bg-slate-100 text-slate-800 border border-slate-200"; // Very Low
+      default:
+        return "bg-slate-100 text-slate-800 border border-slate-200";
     }
   };
 
   const getTypeStyle = (type) => {
     const t = (type || "").toLowerCase();
-    if (t === 'bug') return "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20";
-    if (t === 'feature' || t === 'epic') return "bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-700/10";
+    if (t === "bug")
+      return "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20";
+    if (t === "feature" || t === "epic")
+      return "bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-700/10";
     return "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10"; // Default (Task)
   };
 
@@ -111,7 +208,9 @@ function TableView({ issues }) {
                 age = `${ageInDays}d`;
               }
 
-              const priorityLabel = PRIORITIES[issue.priority] || issue.priority;
+              const priorityLabel =
+                PRIORITIES[issue.priority] || issue.priority;
+              const PriorityIcon = Icons[priorityLabel] || null;
 
               return (
                 <tr key={issue.id} className="hover:bg-slate-50">
@@ -122,14 +221,23 @@ function TableView({ issues }) {
                     {issue.title || "Untitled"}
                   </td>
                   <td className="px-6 py-3">
-                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeStyle(issue.issue_type)}`}>
-                        {issue.issue_type}
-                     </span>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeStyle(
+                        issue.issue_type
+                      )}`}
+                    >
+                      {issue.issue_type}
+                    </span>
                   </td>
                   <td className="px-6 py-3">
-                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getPriorityStyle(issue.priority)}`}>
-                        {priorityLabel}
-                     </span>
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${getPriorityStyle(
+                        issue.priority
+                      )}`}
+                    >
+                      {PriorityIcon}
+                      {priorityLabel}
+                    </span>
                   </td>
                   <td className="px-6 py-3">
                     <span
@@ -172,7 +280,10 @@ function TableView({ issues }) {
             })}
             {filteredIssues.length === 0 && (
               <tr>
-                <td colSpan="9" className="px-6 py-8 text-center text-slate-400">
+                <td
+                  colSpan="9"
+                  className="px-6 py-8 text-center text-slate-400"
+                >
                   No issues found matching "{filterText}"
                 </td>
               </tr>

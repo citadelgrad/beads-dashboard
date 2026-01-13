@@ -1,6 +1,6 @@
 {
   "name": "beads-dashboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A local, real-time lean metrics dashboard for Beads",
   "main": "index.js",
   "bin": {
@@ -18,7 +18,13 @@
     "start": "NODE_ENV=production node dist/server/server/index.js",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
-  "keywords": ["beads", "dashboard", "metrics", "lean", "kanban"],
+  "keywords": [
+    "beads",
+    "dashboard",
+    "metrics",
+    "lean",
+    "kanban"
+  ],
   "author": "Rhyd Lewis",
   "license": "ISC",
   "type": "module",

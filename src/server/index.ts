@@ -44,7 +44,7 @@ app.use('/api', apiRouter);
 
 // Serve index.html for all other routes in production (SPA fallback)
 if (isProduction) {
-  app.get('*', (_req, res) => {
+  app.get(/.*/, (_req, res) => {
     res.sendFile(path.join(__dirname, '../../client/index.html'));
   });
 }

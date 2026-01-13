@@ -26,7 +26,7 @@
     "kanban"
   ],
   "author": "Rhyd Lewis",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",

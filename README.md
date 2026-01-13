@@ -1,5 +1,7 @@
  # Beads Performance Dashboard
 
+**BETA SOFTWARE**: This tool is under active development and provided “as is,” without warranty. Use at your own risk.
+
 A local, real-time lean metrics dashboard for [Beads](https://github.com/steveyegge/beads). This tool visualizes your Beads issue database to help you understand your flow, identify bottlenecks, and track continuous improvement metrics.
 
 ## Features
@@ -75,4 +77,4 @@ The project uses a simple Node.js/Express backend with Socket.IO for live update
 
 ## License
 
-MIT
+This software is licensed under the [MIT License](LICENSE).

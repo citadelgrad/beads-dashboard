@@ -1,0 +1,118 @@
+import { useState, useEffect } from 'react';
+import { io, Socket } from 'socket.io-client';
+import type { Issue } from '@shared/types';
+import { useMetrics } from '@/hooks/useMetrics';
+import DashboardView from '@/components/DashboardView';
+import TableView from '@/components/TableView';
+
+function App() {
+  const [parsedIssues, setParsedIssues] = useState<Issue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'table' | 'dashboard'>('table');
+  const [socket, setSocket] = useState<Socket | null>(null);
+
+  const metrics = useMetrics(parsedIssues);
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch('/api/data');
+      if (!res.ok) throw new Error('Failed to fetch data');
+      const data = await res.json();
+      setParsedIssues(data);
+      setLoading(false);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+
+    const socketInstance = io();
+    setSocket(socketInstance);
+
+    socketInstance.on('refresh', () => {
+      console.log('Data changed, reloading...');
+      fetchData();
+    });
+
+    return () => {
+      socketInstance.disconnect();
+    };
+  }, []);
+
+  // Extract project name from issue IDs
+  const projectName = parsedIssues.length > 0
+    ? parsedIssues[0].id.substring(0, parsedIssues[0].id.lastIndexOf('-'))
+    : '';
+
+  // Filter out tombstones for display count
+  const activeIssuesCount = parsedIssues.filter((i) => i.status !== 'tombstone').length;
+
+  return (
+    <div className="max-w-6xl mx-auto p-8">
+      <header className="mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {projectName && (
+                <span className="text-slate-500 font-normal">{projectName} / </span>
+              )}
+              Beads Performance Dashboard
+            </h1>
+            <p className="text-slate-500 text-sm">
+              Live View • {activeIssuesCount} issues loaded
+            </p>
+          </div>
+          <div className="text-xs text-slate-400">
+            {loading ? 'Connecting...' : 'Connected'}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex space-x-4 border-b border-slate-200">
+          <button
+            className={`pb-2 px-1 text-sm font-medium ${
+              activeTab === 'table'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+            onClick={() => setActiveTab('table')}
+          >
+            All Issues
+          </button>
+          <button
+            className={`pb-2 px-1 text-sm font-medium ${
+              activeTab === 'dashboard'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            Dashboard
+          </button>
+        </div>
+      </header>
+
+      {loading && !parsedIssues.length ? (
+        <div className="card py-20 text-center text-slate-400">Loading data...</div>
+      ) : error ? (
+        <div className="card py-20 text-center text-red-500">{error}</div>
+      ) : !metrics ? (
+        <div className="card border-dashed border-2 py-20 text-center text-slate-400">
+          No issues found in .beads directory.
+        </div>
+      ) : activeTab === 'table' ? (
+        <TableView issues={parsedIssues} />
+      ) : (
+        <DashboardView metrics={metrics} />
+      )}
+    </div>
+  );
+}
+
+export default App;

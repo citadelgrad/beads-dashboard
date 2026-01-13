@@ -2,6 +2,18 @@
 
 // Check for help flag
 const args = process.argv.slice(2);
+
+if (args.includes('--version') || args.includes('-v')) {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const pkg = JSON.parse(await readFile(join(__dirname, '../package.json'), 'utf-8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
+
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`
 Beads Performance Dashboard
@@ -19,6 +31,7 @@ ARGUMENTS:
 
 OPTIONS:
   --port=PORT     Port to run the server on (default: 3001)
+  --version, -v   Show version number
   --help, -h      Show this help message
 
 EXAMPLES:

@@ -1,42 +1,24 @@
-# Agent Instructions
+# Repository Guidelines
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+## Issue Tracking
+This project uses **bd (beads)** for issue tracking. Run `bd prime` for workflow context, or install hooks (`bd hooks install`) for auto-injection.  
+**Quick reference:** `bd ready` (find work), `bd create "Title"` (new issue), `bd close <id>` (complete), `bd sync` (sync with git). Claim tasks via `bd update <id> --status in_progress` before coding and file/close items during handoff.
 
-## Quick Reference
+## Project Structure & Module Organization
+Source lives in `src`: `src/client` contains the React UI, `src/server` holds the Express/Socket.IO backend, and `src/shared` hosts types reused by both via the configured aliases (`@/`, `@server/`, `@shared/`). CLI wiring is under `bin`, static assets in `public`, distribution builds in `dist`, and automated tests plus fixtures in `tests`.
 
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
-bd sync               # Sync with git
-```
+## Build, Test, and Development Commands
+- `npm run dev` – parallel Vite client and `tsx` server for live TypeScript edits.
+- `npm run build` – chains `build:client` and `build:server` to refresh `dist/`.
+- `npm run start -- /path/to/project` – run the compiled CLI/Express server against a `.beads` directory.
+- `npm run preview` – static preview of the built client for UX checks.
+- `npm run typecheck` – strict TypeScript across client/server projects.
 
-Use https://steveyegge.github.io/beads/llms.txt for more detailed reference.
+## Coding Style & Naming Conventions
+Code is modern TypeScript with strict compiler settings, React function components, and 2-space indentation (see `src/client/App.tsx`). Use PascalCase for components, `use*` for hooks, kebab-case for CLI files, and colocate helpers with their feature. Import shared contracts through the aliases instead of relative paths. Server modules should stay async/await friendly, avoid mutable globals, and remain ESM-compatible (`"type": "module"`).
 
-## Landing the Plane (Session Completion)
+## Testing Guidelines
+Vitest powers the suite under `tests/unit`, with `tests/setup.ts` registering shared mocks and `tests/fixtures` storing canonical `.beads` samples. Name new specs `*.test.ts` and group them with similar coverage (e.g., router specs in `tests/unit/api.test.ts`). Run `npm test` for quick feedback, `npm run test:coverage` before release-level changes, and extend fixtures when new issue fields appear so metrics stay reproducible.
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
-
+## Commit & Pull Request Guidelines
+Follow the Conventional Commit pattern (`feat(scope):`, `fix:`, etc.) and reference the associated bead ID when possible, e.g., `feat(priority): show SLA breach (bd#123)`. Before opening a PR, ensure `npm run build`, `npm test`, and `npm run typecheck` succeed, then describe the change, attach screenshots for UI tweaks, and note how reviewers can reproduce with `npm run dev`. Keep commits focused, update docs when behavior changes, and close/comment on the linked bd issue once merged.

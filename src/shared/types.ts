@@ -34,6 +34,15 @@ export type IssueType = 'task' | 'bug' | 'feature' | 'epic';
 // Priority levels (0=Critical, 1=High, 2=Medium, 3=Low, 4=Lowest)
 export type Priority = 0 | 1 | 2 | 3 | 4;
 
+// Dependency relationship
+export interface IssueDependency {
+  issue_id: string;
+  depends_on_id: string;
+  type: 'blocks' | 'depends_on';
+  created_at?: string;
+  created_by?: string;
+}
+
 // Main Issue interface matching .beads/issues.jsonl structure
 export interface Issue {
   id: string;
@@ -46,8 +55,9 @@ export interface Issue {
   updated_at?: string; // ISO 8601 timestamp
   assignee?: string;
   labels?: string[];
-  dependencies?: string[]; // IDs of issues this depends on
-  blocked_by?: string[]; // IDs of issues blocking this one
+  dependencies?: IssueDependency[]; // Dependency relationships
+  blocked_by?: string[]; // IDs of issues blocking this one (legacy)
+  parent_id?: string; // ID of parent epic (if applicable)
 }
 
 // Data point for lead time scatterplot

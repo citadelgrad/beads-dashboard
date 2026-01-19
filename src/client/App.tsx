@@ -104,7 +104,7 @@ function App() {
             }`}
             onClick={() => setActiveTab('table')}
           >
-            All Issues
+            Issues
           </button>
           <button
             className={`pb-2 px-1 text-sm font-medium ${

@@ -20,15 +20,74 @@ interface KanbanBoardProps {
   issues: Issue[];
 }
 
-// Column configuration - order defines display order
-const COLUMNS: { status: IssueStatus; label: string; bgColor: string; headerColor: string }[] = [
-  { status: 'open', label: 'Open', bgColor: 'bg-slate-50', headerColor: 'bg-slate-200' },
-  { status: 'in_progress', label: 'In Progress', bgColor: 'bg-blue-50', headerColor: 'bg-blue-200' },
-  { status: 'blocked', label: 'Blocked', bgColor: 'bg-red-50', headerColor: 'bg-red-200' },
-  { status: 'closed', label: 'Done', bgColor: 'bg-green-50', headerColor: 'bg-green-200' },
-  { status: 'deferred', label: 'Deferred', bgColor: 'bg-amber-50', headerColor: 'bg-amber-200' },
-  { status: 'tombstone', label: 'Tombstone', bgColor: 'bg-gray-50', headerColor: 'bg-gray-300' },
+// Kanban categories (different from IssueStatus)
+type KanbanCategory = 'blocked' | 'ready' | 'in_progress' | 'closed';
+
+// Column configuration - beads-style categories
+const COLUMNS: { category: KanbanCategory; label: string; bgColor: string; headerColor: string }[] = [
+  { category: 'blocked', label: 'Blocked', bgColor: 'bg-red-50', headerColor: 'bg-red-200' },
+  { category: 'ready', label: 'Ready', bgColor: 'bg-slate-50', headerColor: 'bg-slate-200' },
+  { category: 'in_progress', label: 'In Progress', bgColor: 'bg-blue-50', headerColor: 'bg-blue-200' },
+  { category: 'closed', label: 'Closed', bgColor: 'bg-green-50', headerColor: 'bg-green-200' },
 ];
+
+// Map kanban category to status for drag-and-drop updates
+const CATEGORY_TO_STATUS: Record<KanbanCategory, IssueStatus> = {
+  blocked: 'blocked',
+  ready: 'open',
+  in_progress: 'in_progress',
+  closed: 'closed',
+};
+
+// Check if an issue is blocked by dependencies
+function isBlockedByDependencies(issue: Issue, allIssues: Issue[]): boolean {
+  // Check dependencies array (new format)
+  if (issue.dependencies && Array.isArray(issue.dependencies)) {
+    for (const dep of issue.dependencies) {
+      if (typeof dep === 'object' && dep.depends_on_id) {
+        const dependsOnIssue = allIssues.find((i) => i.id === dep.depends_on_id);
+        // If the dependency exists and is not closed, this issue is blocked
+        if (dependsOnIssue && dependsOnIssue.status !== 'closed') {
+          return true;
+        }
+      }
+    }
+  }
+
+  // Check blocked_by array (legacy format)
+  if (issue.blocked_by && Array.isArray(issue.blocked_by)) {
+    for (const blockerId of issue.blocked_by) {
+      const blockerIssue = allIssues.find((i) => i.id === blockerId);
+      if (blockerIssue && blockerIssue.status !== 'closed') {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// Categorize an issue into a kanban column
+function categorizeIssue(issue: Issue, allIssues: Issue[]): KanbanCategory {
+  // Closed issues go to Closed column
+  if (issue.status === 'closed') {
+    return 'closed';
+  }
+
+  // In progress issues go to In Progress column
+  if (issue.status === 'in_progress') {
+    return 'in_progress';
+  }
+
+  // Explicitly blocked issues or dependency-blocked issues go to Blocked
+  if (issue.status === 'blocked' || isBlockedByDependencies(issue, allIssues)) {
+    return 'blocked';
+  }
+
+  // Everything else (open, deferred, pinned, hooked) goes to Ready
+  // Note: tombstones are filtered out before display
+  return 'ready';
+}
 
 // Priority border colors
 const PRIORITY_BORDER_COLORS: Record<Priority, string> = {
@@ -144,12 +203,12 @@ function KanbanCard({ issue, onDragStart, onTouchStart, onCardClick, isDragging 
 }
 
 interface KanbanColumnProps {
-  status: IssueStatus;
+  category: KanbanCategory;
   label: string;
   bgColor: string;
   headerColor: string;
   issues: Issue[];
-  onDrop: (status: IssueStatus) => void;
+  onDrop: (category: KanbanCategory) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragStart: (e: React.DragEvent<HTMLDivElement>, issue: Issue) => void;
   onTouchStart: (e: React.TouchEvent<HTMLDivElement>, issue: Issue) => void;
@@ -159,7 +218,7 @@ interface KanbanColumnProps {
 }
 
 function KanbanColumn({
-  status,
+  category,
   label,
   bgColor,
   headerColor,
@@ -178,8 +237,8 @@ function KanbanColumn({
         isDropTarget ? 'border-blue-400 border-2' : 'border-slate-200'
       }`}
       onDragOver={onDragOver}
-      onDrop={() => onDrop(status)}
-      data-testid={`kanban-column-${status}`}
+      onDrop={() => onDrop(category)}
+      data-testid={`kanban-column-${category}`}
     >
       {/* Sticky header */}
       <div className={`sticky top-0 z-10 p-3 ${headerColor} rounded-t-lg border-b border-slate-200`}>
@@ -216,7 +275,7 @@ function KanbanColumn({
 
 function KanbanBoard({ issues }: KanbanBoardProps) {
   const [draggingIssue, setDraggingIssue] = useState<Issue | null>(null);
-  const [dropTarget, setDropTarget] = useState<IssueStatus | null>(null);
+  const [dropTarget, setDropTarget] = useState<KanbanCategory | null>(null);
   const [optimisticIssues, setOptimisticIssues] = useState<Issue[]>(issues);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -234,11 +293,14 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
     setOptimisticIssues(issues);
   }, [issues]);
 
-  // Group issues by status
-  const issuesByStatus = COLUMNS.reduce((acc, col) => {
-    acc[col.status] = optimisticIssues.filter((issue) => issue.status === col.status);
+  // Filter out tombstones and group issues by kanban category
+  const visibleIssues = optimisticIssues.filter((issue) => issue.status !== 'tombstone');
+  const issuesByCategory = COLUMNS.reduce((acc, col) => {
+    acc[col.category] = visibleIssues.filter(
+      (issue) => categorizeIssue(issue, optimisticIssues) === col.category
+    );
     return acc;
-  }, {} as Record<IssueStatus, Issue[]>);
+  }, {} as Record<KanbanCategory, Issue[]>);
 
   // Handle drag start
   const handleDragStart = useCallback((e: React.DragEvent<HTMLDivElement>, issue: Issue) => {
@@ -282,8 +344,8 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
       for (const el of elements) {
         const testId = el.getAttribute('data-testid');
         if (testId?.startsWith('kanban-column-')) {
-          const status = testId.replace('kanban-column-', '') as IssueStatus;
-          setDropTarget(status);
+          const category = testId.replace('kanban-column-', '') as KanbanCategory;
+          setDropTarget(category);
           return;
         }
       }
@@ -323,14 +385,24 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
     const target = e.currentTarget;
     const testId = target.getAttribute('data-testid');
     if (testId?.startsWith('kanban-column-')) {
-      const status = testId.replace('kanban-column-', '') as IssueStatus;
-      setDropTarget(status);
+      const category = testId.replace('kanban-column-', '') as KanbanCategory;
+      setDropTarget(category);
     }
   }, []);
 
   // Handle drop - update status via API
-  const handleDrop = useCallback(async (newStatus: IssueStatus) => {
-    if (!draggingIssue || draggingIssue.status === newStatus) {
+  const handleDrop = useCallback(async (newCategory: KanbanCategory) => {
+    if (!draggingIssue) {
+      setDraggingIssue(null);
+      setDropTarget(null);
+      return;
+    }
+
+    const newStatus = CATEGORY_TO_STATUS[newCategory];
+    const currentCategory = categorizeIssue(draggingIssue, optimisticIssues);
+
+    // Don't do anything if dropping in the same category
+    if (currentCategory === newCategory) {
       setDraggingIssue(null);
       setDropTarget(null);
       return;
@@ -375,7 +447,7 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
     } finally {
       setUpdating(null);
     }
-  }, [draggingIssue]);
+  }, [draggingIssue, optimisticIssues]);
 
   // Handle drag end
   const handleDragEnd = useCallback(() => {
@@ -446,19 +518,19 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
       <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '600px' }}>
         {COLUMNS.map((col) => (
           <KanbanColumn
-            key={col.status}
-            status={col.status}
+            key={col.category}
+            category={col.category}
             label={col.label}
             bgColor={col.bgColor}
             headerColor={col.headerColor}
-            issues={issuesByStatus[col.status] || []}
+            issues={issuesByCategory[col.category] || []}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragStart={handleDragStart}
             onTouchStart={handleTouchStart}
             onCardClick={handleCardClick}
             draggingIssueId={draggingIssue?.id || null}
-            isDropTarget={dropTarget === col.status}
+            isDropTarget={dropTarget === col.category}
           />
         ))}
       </div>
@@ -545,5 +617,17 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
 
 export default KanbanBoard;
 
-// Export helper functions for testing
-export { getAgeInDays, getAgeBadgeColor, getInitials, COLUMNS, PRIORITY_BORDER_COLORS };
+// Export helper functions and constants for testing
+export {
+  getAgeInDays,
+  getAgeBadgeColor,
+  getInitials,
+  COLUMNS,
+  PRIORITY_BORDER_COLORS,
+  CATEGORY_TO_STATUS,
+  isBlockedByDependencies,
+  categorizeIssue,
+};
+
+// Export type for testing
+export type { KanbanCategory };

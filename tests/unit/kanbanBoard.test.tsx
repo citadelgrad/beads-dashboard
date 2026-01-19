@@ -6,6 +6,9 @@ import KanbanBoard, {
   getInitials,
   COLUMNS,
   PRIORITY_BORDER_COLORS,
+  CATEGORY_TO_STATUS,
+  isBlockedByDependencies,
+  categorizeIssue,
 } from '@/components/KanbanBoard';
 import type { Issue, Priority } from '@shared/types';
 
@@ -107,45 +110,39 @@ describe('KanbanBoard Helper Functions', () => {
 });
 
 describe('KanbanBoard Column Configuration', () => {
-  it('has correct number of columns', () => {
-    expect(COLUMNS).toHaveLength(6);
+  it('has correct number of columns (beads-style: 4)', () => {
+    expect(COLUMNS).toHaveLength(4);
   });
 
-  it('includes all required statuses', () => {
-    const statuses = COLUMNS.map((col) => col.status);
-    expect(statuses).toContain('open');
-    expect(statuses).toContain('in_progress');
-    expect(statuses).toContain('blocked');
-    expect(statuses).toContain('closed');
-    expect(statuses).toContain('deferred');
-    expect(statuses).toContain('tombstone');
+  it('includes all required categories', () => {
+    const categories = COLUMNS.map((col) => col.category);
+    expect(categories).toContain('blocked');
+    expect(categories).toContain('ready');
+    expect(categories).toContain('in_progress');
+    expect(categories).toContain('closed');
   });
 
-  it('has correct column order', () => {
-    expect(COLUMNS[0].status).toBe('open');
-    expect(COLUMNS[1].status).toBe('in_progress');
-    expect(COLUMNS[2].status).toBe('blocked');
-    expect(COLUMNS[3].status).toBe('closed');
-    expect(COLUMNS[4].status).toBe('deferred');
-    expect(COLUMNS[5].status).toBe('tombstone');
+  it('has correct column order (Blocked, Ready, In Progress, Closed)', () => {
+    expect(COLUMNS[0].category).toBe('blocked');
+    expect(COLUMNS[1].category).toBe('ready');
+    expect(COLUMNS[2].category).toBe('in_progress');
+    expect(COLUMNS[3].category).toBe('closed');
   });
 
   it('maps labels correctly', () => {
-    expect(COLUMNS[0].label).toBe('Open');
-    expect(COLUMNS[1].label).toBe('In Progress');
-    expect(COLUMNS[2].label).toBe('Blocked');
-    expect(COLUMNS[3].label).toBe('Done');
-    expect(COLUMNS[4].label).toBe('Deferred');
-    expect(COLUMNS[5].label).toBe('Tombstone');
+    expect(COLUMNS[0].label).toBe('Blocked');
+    expect(COLUMNS[1].label).toBe('Ready');
+    expect(COLUMNS[2].label).toBe('In Progress');
+    expect(COLUMNS[3].label).toBe('Closed');
   });
 
   it('each column has all required properties', () => {
     COLUMNS.forEach((col) => {
-      expect(col).toHaveProperty('status');
+      expect(col).toHaveProperty('category');
       expect(col).toHaveProperty('label');
       expect(col).toHaveProperty('bgColor');
       expect(col).toHaveProperty('headerColor');
-      expect(typeof col.status).toBe('string');
+      expect(typeof col.category).toBe('string');
       expect(typeof col.label).toBe('string');
       expect(typeof col.bgColor).toBe('string');
       expect(typeof col.headerColor).toBe('string');
@@ -157,6 +154,124 @@ describe('KanbanBoard Column Configuration', () => {
       expect(col.bgColor).toMatch(/^bg-[a-z]+-\d+$/);
       expect(col.headerColor).toMatch(/^bg-[a-z]+-\d+$/);
     });
+  });
+});
+
+describe('Category to Status Mapping', () => {
+  it('maps blocked category to blocked status', () => {
+    expect(CATEGORY_TO_STATUS.blocked).toBe('blocked');
+  });
+
+  it('maps ready category to open status', () => {
+    expect(CATEGORY_TO_STATUS.ready).toBe('open');
+  });
+
+  it('maps in_progress category to in_progress status', () => {
+    expect(CATEGORY_TO_STATUS.in_progress).toBe('in_progress');
+  });
+
+  it('maps closed category to closed status', () => {
+    expect(CATEGORY_TO_STATUS.closed).toBe('closed');
+  });
+});
+
+describe('isBlockedByDependencies', () => {
+  it('returns false for issue with no dependencies', () => {
+    const issue = createTestIssue({ id: 'test-1', status: 'open' });
+    const allIssues = [issue];
+    expect(isBlockedByDependencies(issue, allIssues)).toBe(false);
+  });
+
+  it('returns true for issue with open dependency', () => {
+    const blocker = createTestIssue({ id: 'blocker-1', status: 'open' });
+    const blocked = createTestIssue({
+      id: 'blocked-1',
+      status: 'open',
+      dependencies: [{ issue_id: 'blocked-1', depends_on_id: 'blocker-1', type: 'depends_on' }],
+    });
+    const allIssues = [blocker, blocked];
+    expect(isBlockedByDependencies(blocked, allIssues)).toBe(true);
+  });
+
+  it('returns false for issue with closed dependency', () => {
+    const blocker = createTestIssue({ id: 'blocker-1', status: 'closed' });
+    const blocked = createTestIssue({
+      id: 'blocked-1',
+      status: 'open',
+      dependencies: [{ issue_id: 'blocked-1', depends_on_id: 'blocker-1', type: 'depends_on' }],
+    });
+    const allIssues = [blocker, blocked];
+    expect(isBlockedByDependencies(blocked, allIssues)).toBe(false);
+  });
+
+  it('returns true for issue with legacy blocked_by array', () => {
+    const blocker = createTestIssue({ id: 'blocker-1', status: 'in_progress' });
+    const blocked = createTestIssue({
+      id: 'blocked-1',
+      status: 'open',
+      blocked_by: ['blocker-1'],
+    });
+    const allIssues = [blocker, blocked];
+    expect(isBlockedByDependencies(blocked, allIssues)).toBe(true);
+  });
+
+  it('returns false when blocker issue does not exist', () => {
+    const blocked = createTestIssue({
+      id: 'blocked-1',
+      status: 'open',
+      dependencies: [{ issue_id: 'blocked-1', depends_on_id: 'non-existent', type: 'depends_on' }],
+    });
+    const allIssues = [blocked];
+    expect(isBlockedByDependencies(blocked, allIssues)).toBe(false);
+  });
+});
+
+describe('categorizeIssue', () => {
+  it('categorizes closed issues as closed', () => {
+    const issue = createTestIssue({ id: 'test-1', status: 'closed' });
+    const allIssues = [issue];
+    expect(categorizeIssue(issue, allIssues)).toBe('closed');
+  });
+
+  it('categorizes in_progress issues as in_progress', () => {
+    const issue = createTestIssue({ id: 'test-1', status: 'in_progress' });
+    const allIssues = [issue];
+    expect(categorizeIssue(issue, allIssues)).toBe('in_progress');
+  });
+
+  it('categorizes explicitly blocked issues as blocked', () => {
+    const issue = createTestIssue({ id: 'test-1', status: 'blocked' });
+    const allIssues = [issue];
+    expect(categorizeIssue(issue, allIssues)).toBe('blocked');
+  });
+
+  it('categorizes dependency-blocked issues as blocked', () => {
+    const blocker = createTestIssue({ id: 'blocker-1', status: 'open' });
+    const blocked = createTestIssue({
+      id: 'blocked-1',
+      status: 'open',
+      dependencies: [{ issue_id: 'blocked-1', depends_on_id: 'blocker-1', type: 'depends_on' }],
+    });
+    const allIssues = [blocker, blocked];
+    expect(categorizeIssue(blocked, allIssues)).toBe('blocked');
+  });
+
+  it('categorizes open issues with no blockers as ready', () => {
+    const issue = createTestIssue({ id: 'test-1', status: 'open' });
+    const allIssues = [issue];
+    expect(categorizeIssue(issue, allIssues)).toBe('ready');
+  });
+
+  it('categorizes deferred issues as ready', () => {
+    const issue = createTestIssue({ id: 'test-1', status: 'deferred' as any });
+    const allIssues = [issue];
+    expect(categorizeIssue(issue, allIssues)).toBe('ready');
+  });
+
+  it('categorizes pinned issues as ready', () => {
+    const issue = createTestIssue({ id: 'test-1', status: 'pinned' as any });
+    const allIssues = [issue];
+    expect(categorizeIssue(issue, allIssues)).toBe('ready');
   });
 });
 
@@ -186,32 +301,28 @@ describe('KanbanBoard Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders all columns', () => {
+  it('renders all columns (beads-style: 4)', () => {
     render(<KanbanBoard issues={[]} />);
 
-    // Check all columns are rendered
-    expect(screen.getByTestId('kanban-column-open')).toBeInTheDocument();
-    expect(screen.getByTestId('kanban-column-in_progress')).toBeInTheDocument();
+    // Check all 4 beads-style columns are rendered
     expect(screen.getByTestId('kanban-column-blocked')).toBeInTheDocument();
+    expect(screen.getByTestId('kanban-column-ready')).toBeInTheDocument();
+    expect(screen.getByTestId('kanban-column-in_progress')).toBeInTheDocument();
     expect(screen.getByTestId('kanban-column-closed')).toBeInTheDocument();
-    expect(screen.getByTestId('kanban-column-deferred')).toBeInTheDocument();
-    expect(screen.getByTestId('kanban-column-tombstone')).toBeInTheDocument();
   });
 
   it('shows column headers with correct labels', () => {
     render(<KanbanBoard issues={[]} />);
 
-    expect(screen.getByText('Open')).toBeInTheDocument();
-    expect(screen.getByText('In Progress')).toBeInTheDocument();
     expect(screen.getByText('Blocked')).toBeInTheDocument();
-    expect(screen.getByText('Done')).toBeInTheDocument();
-    expect(screen.getByText('Deferred')).toBeInTheDocument();
-    expect(screen.getByText('Tombstone')).toBeInTheDocument();
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(screen.getByText('In Progress')).toBeInTheDocument();
+    expect(screen.getByText('Closed')).toBeInTheDocument();
   });
 
-  it('groups issues correctly by status', () => {
+  it('groups issues correctly by category', () => {
     const issues: Issue[] = [
-      createTestIssue({ id: 'test-1', title: 'Open Issue', status: 'open' }),
+      createTestIssue({ id: 'test-1', title: 'Ready Issue', status: 'open' }),
       createTestIssue({ id: 'test-2', title: 'In Progress Issue', status: 'in_progress' }),
       createTestIssue({ id: 'test-3', title: 'Closed Issue', status: 'closed' }),
     ];
@@ -219,13 +330,31 @@ describe('KanbanBoard Component', () => {
     render(<KanbanBoard issues={issues} />);
 
     // Check cards are in correct columns
-    const openColumn = screen.getByTestId('kanban-column-open');
+    const readyColumn = screen.getByTestId('kanban-column-ready');
     const inProgressColumn = screen.getByTestId('kanban-column-in_progress');
     const closedColumn = screen.getByTestId('kanban-column-closed');
 
-    expect(openColumn).toHaveTextContent('Open Issue');
+    expect(readyColumn).toHaveTextContent('Ready Issue');
     expect(inProgressColumn).toHaveTextContent('In Progress Issue');
     expect(closedColumn).toHaveTextContent('Closed Issue');
+  });
+
+  it('categorizes dependency-blocked issues into Blocked column', () => {
+    const blocker = createTestIssue({ id: 'blocker-1', title: 'Blocker', status: 'open' });
+    const blocked = createTestIssue({
+      id: 'blocked-1',
+      title: 'Blocked by dependency',
+      status: 'open',
+      dependencies: [{ issue_id: 'blocked-1', depends_on_id: 'blocker-1', type: 'depends_on' }],
+    });
+
+    render(<KanbanBoard issues={[blocker, blocked]} />);
+
+    const blockedColumn = screen.getByTestId('kanban-column-blocked');
+    const readyColumn = screen.getByTestId('kanban-column-ready');
+
+    expect(blockedColumn).toHaveTextContent('Blocked by dependency');
+    expect(readyColumn).toHaveTextContent('Blocker');
   });
 
   it('displays empty state for columns with no issues', () => {
@@ -233,7 +362,7 @@ describe('KanbanBoard Component', () => {
 
     // Each empty column should show "No issues"
     const emptyMessages = screen.getAllByText('No issues');
-    expect(emptyMessages.length).toBe(6); // All 6 columns should be empty
+    expect(emptyMessages.length).toBe(4); // All 4 columns should be empty
   });
 
   it('displays correct WIP count in column headers', () => {
@@ -245,12 +374,24 @@ describe('KanbanBoard Component', () => {
 
     render(<KanbanBoard issues={issues} />);
 
-    // Open column should show 2, in_progress should show 1
-    const openColumn = screen.getByTestId('kanban-column-open');
+    // Ready column should show 2, in_progress should show 1
+    const readyColumn = screen.getByTestId('kanban-column-ready');
     const inProgressColumn = screen.getByTestId('kanban-column-in_progress');
 
-    expect(openColumn).toHaveTextContent('2');
+    expect(readyColumn).toHaveTextContent('2');
     expect(inProgressColumn).toHaveTextContent('1');
+  });
+
+  it('filters out tombstone issues from display', () => {
+    const issues: Issue[] = [
+      createTestIssue({ id: 'test-1', title: 'Active Issue', status: 'open' }),
+      createTestIssue({ id: 'test-2', title: 'Tombstone Issue', status: 'tombstone' }),
+    ];
+
+    render(<KanbanBoard issues={issues} />);
+
+    expect(screen.getByText('Active Issue')).toBeInTheDocument();
+    expect(screen.queryByText('Tombstone Issue')).not.toBeInTheDocument();
   });
 
   describe('KanbanCard Display', () => {
@@ -584,7 +725,7 @@ describe('KanbanBoard Component', () => {
 
         const card = screen.getByTestId('kanban-card-test-revert-1');
         const inProgressColumn = screen.getByTestId('kanban-column-in_progress');
-        const openColumn = screen.getByTestId('kanban-column-open');
+        const readyColumn = screen.getByTestId('kanban-column-ready');
 
         // Simulate drag start
         fireEvent.dragStart(card, {
@@ -596,7 +737,7 @@ describe('KanbanBoard Component', () => {
 
         // Wait for API error and revert
         await waitFor(() => {
-          expect(openColumn).toHaveTextContent('Revert Test');
+          expect(readyColumn).toHaveTextContent('Revert Test');
         });
 
         // Error message should be displayed
@@ -610,15 +751,15 @@ describe('KanbanBoard Component', () => {
         render(<KanbanBoard issues={issues} />);
 
         const card = screen.getByTestId('kanban-card-test-same-1');
-        const openColumn = screen.getByTestId('kanban-column-open');
+        const readyColumn = screen.getByTestId('kanban-column-ready');
 
         // Simulate drag start
         fireEvent.dragStart(card, {
           dataTransfer: { effectAllowed: 'move', setData: vi.fn() },
         });
 
-        // Simulate drop on same column
-        fireEvent.drop(openColumn);
+        // Simulate drop on same column (ready)
+        fireEvent.drop(readyColumn);
 
         // API should not be called
         expect(mockFetch).not.toHaveBeenCalled();
@@ -640,11 +781,11 @@ describe('KanbanBoard Component', () => {
       ];
       render(<KanbanBoard issues={issues} />);
 
-      const openColumn = screen.getByTestId('kanban-column-open');
+      const readyColumn = screen.getByTestId('kanban-column-ready');
       const inProgressColumn = screen.getByTestId('kanban-column-in_progress');
 
-      // Initially open has 2, in_progress has 0
-      expect(openColumn).toHaveTextContent('2');
+      // Initially ready has 2, in_progress has 0
+      expect(readyColumn).toHaveTextContent('2');
       expect(inProgressColumn).toHaveTextContent('0');
 
       const card = screen.getByTestId('kanban-card-test-wip-1');
@@ -655,9 +796,9 @@ describe('KanbanBoard Component', () => {
       });
       fireEvent.drop(inProgressColumn);
 
-      // After optimistic update: open has 1, in_progress has 1
+      // After optimistic update: ready has 1, in_progress has 1
       await waitFor(() => {
-        expect(openColumn).toHaveTextContent('1');
+        expect(readyColumn).toHaveTextContent('1');
         expect(inProgressColumn).toHaveTextContent('1');
       });
     });
@@ -665,7 +806,7 @@ describe('KanbanBoard Component', () => {
 
   describe('API Integration', () => {
     describe('Status Update API', () => {
-      it('sends correct request format for status update', async () => {
+      it('sends correct request format for status update (ready to blocked)', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           json: async () => ({ success: true }),
@@ -689,6 +830,35 @@ describe('KanbanBoard Component', () => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ status: 'blocked' }),
+            })
+          );
+        });
+      });
+
+      it('sends open status when dropping on Ready column', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true }),
+        });
+
+        const issues = [createTestIssue({ id: 'test-api-2', status: 'in_progress', title: 'Ready Test' })];
+        render(<KanbanBoard issues={issues} />);
+
+        const card = screen.getByTestId('kanban-card-test-api-2');
+        const readyColumn = screen.getByTestId('kanban-column-ready');
+
+        fireEvent.dragStart(card, {
+          dataTransfer: { effectAllowed: 'move', setData: vi.fn() },
+        });
+        fireEvent.drop(readyColumn);
+
+        await waitFor(() => {
+          expect(mockFetch).toHaveBeenCalledWith(
+            '/api/issues/test-api-2/status',
+            expect.objectContaining({
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'open' }),
             })
           );
         });
@@ -748,16 +918,16 @@ describe('KanbanBoard Component', () => {
 
         const card = screen.getByTestId('kanban-card-test-network');
         const inProgressColumn = screen.getByTestId('kanban-column-in_progress');
-        const openColumn = screen.getByTestId('kanban-column-open');
+        const readyColumn = screen.getByTestId('kanban-column-ready');
 
         fireEvent.dragStart(card, {
           dataTransfer: { effectAllowed: 'move', setData: vi.fn() },
         });
         fireEvent.drop(inProgressColumn);
 
-        // Card should revert to original column
+        // Card should revert to original column (Ready)
         await waitFor(() => {
-          expect(openColumn).toHaveTextContent('Network Test');
+          expect(readyColumn).toHaveTextContent('Network Test');
         });
 
         // Error message should be displayed
@@ -1227,35 +1397,33 @@ describe('KanbanBoard Component', () => {
   });
 
   describe('Layout and Responsive', () => {
-    it('renders 6 columns with correct structure', () => {
+    it('renders 4 columns with correct structure', () => {
       render(<KanbanBoard issues={[]} />);
 
-      // Verify all 6 columns are rendered
+      // Verify all 4 beads-style columns are rendered
       const columns = [
-        screen.getByTestId('kanban-column-open'),
-        screen.getByTestId('kanban-column-in_progress'),
         screen.getByTestId('kanban-column-blocked'),
+        screen.getByTestId('kanban-column-ready'),
+        screen.getByTestId('kanban-column-in_progress'),
         screen.getByTestId('kanban-column-closed'),
-        screen.getByTestId('kanban-column-deferred'),
-        screen.getByTestId('kanban-column-tombstone'),
       ];
 
-      expect(columns).toHaveLength(6);
+      expect(columns).toHaveLength(4);
     });
 
     it('columns have min-width class for responsive behavior', () => {
       render(<KanbanBoard issues={[]} />);
 
-      const openColumn = screen.getByTestId('kanban-column-open');
+      const readyColumn = screen.getByTestId('kanban-column-ready');
       // Columns should have min-width to prevent shrinking too small
-      expect(openColumn).toHaveClass('min-w-[200px]');
+      expect(readyColumn).toHaveClass('min-w-[200px]');
     });
 
     it('columns have flex-shrink-0 to maintain size', () => {
       render(<KanbanBoard issues={[]} />);
 
-      const openColumn = screen.getByTestId('kanban-column-open');
-      expect(openColumn).toHaveClass('flex-shrink-0');
+      const readyColumn = screen.getByTestId('kanban-column-ready');
+      expect(readyColumn).toHaveClass('flex-shrink-0');
     });
 
     it('board container has horizontal overflow for scrolling', () => {
@@ -1276,46 +1444,44 @@ describe('KanbanBoard Component', () => {
     it('columns have vertical overflow for card scrolling', () => {
       render(<KanbanBoard issues={[]} />);
 
-      const openColumn = screen.getByTestId('kanban-column-open');
+      const readyColumn = screen.getByTestId('kanban-column-ready');
       // The cards container within the column should have overflow-y-auto
-      const cardsContainer = openColumn.querySelector('.overflow-y-auto');
+      const cardsContainer = readyColumn.querySelector('.overflow-y-auto');
       expect(cardsContainer).toBeInTheDocument();
     });
 
     it('column headers are sticky for visibility while scrolling', () => {
       render(<KanbanBoard issues={[]} />);
 
-      const openColumn = screen.getByTestId('kanban-column-open');
-      const header = openColumn.querySelector('.sticky.top-0');
+      const readyColumn = screen.getByTestId('kanban-column-ready');
+      const header = readyColumn.querySelector('.sticky.top-0');
       expect(header).toBeInTheDocument();
     });
 
     it('columns have correct width calculation for 4-column desktop layout', () => {
       render(<KanbanBoard issues={[]} />);
 
-      const openColumn = screen.getByTestId('kanban-column-open');
+      const readyColumn = screen.getByTestId('kanban-column-ready');
       // Width is calc(25% - 12px) for 4 columns with gap
-      expect(openColumn).toHaveClass('w-[calc(25%-12px)]');
+      expect(readyColumn).toHaveClass('w-[calc(25%-12px)]');
     });
 
     it('cards container has minimum height', () => {
       render(<KanbanBoard issues={[]} />);
 
-      const openColumn = screen.getByTestId('kanban-column-open');
-      const cardsContainer = openColumn.querySelector('.min-h-\\[200px\\]');
+      const readyColumn = screen.getByTestId('kanban-column-ready');
+      const cardsContainer = readyColumn.querySelector('.min-h-\\[200px\\]');
       expect(cardsContainer).toBeInTheDocument();
     });
 
-    it('all 6 columns are in the DOM and accessible via scroll', () => {
+    it('all 4 beads-style columns are in the DOM', () => {
       render(<KanbanBoard issues={[]} />);
 
-      // All columns should be present in DOM (5th and 6th accessible via scroll)
-      expect(screen.getByTestId('kanban-column-open')).toBeInTheDocument();
-      expect(screen.getByTestId('kanban-column-in_progress')).toBeInTheDocument();
+      // All 4 columns should be present in DOM
       expect(screen.getByTestId('kanban-column-blocked')).toBeInTheDocument();
+      expect(screen.getByTestId('kanban-column-ready')).toBeInTheDocument();
+      expect(screen.getByTestId('kanban-column-in_progress')).toBeInTheDocument();
       expect(screen.getByTestId('kanban-column-closed')).toBeInTheDocument();
-      expect(screen.getByTestId('kanban-column-deferred')).toBeInTheDocument();
-      expect(screen.getByTestId('kanban-column-tombstone')).toBeInTheDocument();
     });
 
     it('cards have proper styling for readability', () => {
@@ -1344,10 +1510,10 @@ describe('KanbanBoard Component', () => {
       const initialIssues = [createTestIssue({ id: 'test-sync-1', status: 'open', title: 'Initial' })];
       const { rerender } = render(<KanbanBoard issues={initialIssues} />);
 
-      // Initial state
-      const openColumn = screen.getByTestId('kanban-column-open');
-      expect(openColumn).toHaveTextContent('Initial');
-      expect(openColumn).toHaveTextContent('1');
+      // Initial state - open issues go to Ready column
+      const readyColumn = screen.getByTestId('kanban-column-ready');
+      expect(readyColumn).toHaveTextContent('Initial');
+      expect(readyColumn).toHaveTextContent('1');
 
       // Update props with new issues
       const updatedIssues = [
@@ -1359,7 +1525,7 @@ describe('KanbanBoard Component', () => {
       // State should be synchronized
       const inProgressColumn = screen.getByTestId('kanban-column-in_progress');
       expect(inProgressColumn).toHaveTextContent('Updated');
-      expect(openColumn).toHaveTextContent('New Issue');
+      expect(readyColumn).toHaveTextContent('New Issue');
     });
 
     it('maintains optimistic updates until props change', async () => {
@@ -1400,7 +1566,7 @@ describe('KanbanBoard Component', () => {
 
       // All columns should show "No issues"
       COLUMNS.forEach((col) => {
-        const column = screen.getByTestId(`kanban-column-${col.status}`);
+        const column = screen.getByTestId(`kanban-column-${col.category}`);
         expect(column).toHaveTextContent('No issues');
         expect(column).toHaveTextContent('0');
       });

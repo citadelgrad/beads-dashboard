@@ -53,11 +53,26 @@ export interface Issue {
   priority: Priority;
   created_at: string; // ISO 8601 timestamp
   updated_at?: string; // ISO 8601 timestamp
+  closed_at?: string; // ISO 8601 timestamp
   assignee?: string;
   labels?: string[];
   dependencies?: IssueDependency[]; // Dependency relationships
   blocked_by?: string[]; // IDs of issues blocking this one (legacy)
   parent_id?: string; // ID of parent epic (if applicable)
+
+  // Date fields
+  due?: string; // ISO 8601 timestamp - due date
+  defer?: string; // ISO 8601 timestamp - hidden from bd ready until this date
+
+  // Documentation fields
+  design?: string; // Markdown
+  acceptance_criteria?: string; // Markdown
+  notes?: string; // Markdown
+
+  // Metadata fields
+  external_ref?: string;
+  estimate?: number; // In minutes
+  created_by?: string;
 }
 
 // Data point for lead time scatterplot
@@ -122,6 +137,42 @@ export interface UpdateIssueStatusRequest {
 
 export interface UpdateIssuePriorityRequest {
   priority: Priority;
+}
+
+// Extended issue type for all editable fields
+export type ExtendedIssueType =
+  | 'bug'
+  | 'feature'
+  | 'task'
+  | 'epic'
+  | 'chore'
+  | 'merge-request'
+  | 'molecule'
+  | 'gate'
+  | 'agent'
+  | 'role'
+  | 'rig'
+  | 'convoy'
+  | 'event'
+  | 'slot';
+
+// Request type for PATCH /api/issues/:id - all fields optional
+export interface UpdateIssueRequest {
+  title?: string;
+  description?: string;
+  status?: IssueStatus;
+  issue_type?: ExtendedIssueType;
+  priority?: Priority;
+  assignee?: string;
+  labels?: string[];
+  external_ref?: string;
+  estimate?: number;
+  due?: string; // ISO 8601
+  defer?: string; // ISO 8601
+  parent?: string;
+  design?: string;
+  acceptance_criteria?: string;
+  notes?: string;
 }
 
 export interface ApiResponse<T = unknown> {

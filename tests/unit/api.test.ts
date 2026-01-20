@@ -181,4 +181,186 @@ describe('API Routes', () => {
       expect(emitRefreshSpy).toHaveBeenCalled();
     });
   });
+
+  describe('PATCH /api/issues/:id', () => {
+    it('returns 400 when no fields provided', async () => {
+      const response = await request(app)
+        .patch('/api/issues/test-123')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'No fields to update');
+    });
+
+    describe('date field updates (due/defer)', () => {
+      beforeEach(() => {
+        // Create an issue in the JSONL file
+        const issue: Partial<Issue> = {
+          id: 'test-date-issue',
+          title: 'Test Date Issue',
+          status: 'open',
+          issue_type: 'task',
+          priority: 2,
+          created_at: '2024-01-01T00:00:00Z',
+        };
+        fs.writeFileSync(issuesFile, JSON.stringify(issue));
+      });
+
+      it('persists due date to JSONL file', async () => {
+        const dueDate = '2026-02-15T08:00:00.000Z';
+
+        const response = await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ due: dueDate });
+
+        expect(response.status).toBe(200);
+
+        // Read the JSONL file and verify the date was persisted
+        const content = fs.readFileSync(issuesFile, 'utf-8');
+        const savedIssue = JSON.parse(content.trim());
+
+        expect(savedIssue.due).toBe(dueDate);
+      });
+
+      it('persists defer date to JSONL file', async () => {
+        const deferDate = '2026-01-30T08:00:00.000Z';
+
+        const response = await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ defer: deferDate });
+
+        expect(response.status).toBe(200);
+
+        // Read the JSONL file and verify the date was persisted
+        const content = fs.readFileSync(issuesFile, 'utf-8');
+        const savedIssue = JSON.parse(content.trim());
+
+        expect(savedIssue.defer).toBe(deferDate);
+      });
+
+      it('persists both due and defer dates together', async () => {
+        const dueDate = '2026-02-15T08:00:00.000Z';
+        const deferDate = '2026-01-30T08:00:00.000Z';
+
+        const response = await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ due: dueDate, defer: deferDate });
+
+        expect(response.status).toBe(200);
+
+        // Read the JSONL file and verify both dates were persisted
+        const content = fs.readFileSync(issuesFile, 'utf-8');
+        const savedIssue = JSON.parse(content.trim());
+
+        expect(savedIssue.due).toBe(dueDate);
+        expect(savedIssue.defer).toBe(deferDate);
+      });
+
+      it('clears due date when empty string provided', async () => {
+        // First set a due date
+        const issue = JSON.parse(fs.readFileSync(issuesFile, 'utf-8'));
+        issue.due = '2026-02-15T08:00:00.000Z';
+        fs.writeFileSync(issuesFile, JSON.stringify(issue));
+
+        // Now clear it
+        const response = await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ due: '' });
+
+        expect(response.status).toBe(200);
+
+        // Read the JSONL file and verify the date was removed
+        const content = fs.readFileSync(issuesFile, 'utf-8');
+        const savedIssue = JSON.parse(content.trim());
+
+        expect(savedIssue.due).toBeUndefined();
+      });
+
+      it('updates updated_at timestamp when saving dates', async () => {
+        const before = new Date().toISOString();
+
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ due: '2026-02-15T08:00:00.000Z' });
+
+        const content = fs.readFileSync(issuesFile, 'utf-8');
+        const savedIssue = JSON.parse(content.trim());
+
+        expect(savedIssue.updated_at).toBeDefined();
+        expect(new Date(savedIssue.updated_at).getTime()).toBeGreaterThanOrEqual(
+          new Date(before).getTime()
+        );
+      });
+
+      it('date persists after re-reading the file (simulating page reload)', async () => {
+        const deferDate = '2026-01-30T08:00:00.000Z';
+
+        // Save the date
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ defer: deferDate });
+
+        // Simulate reload by fetching all data
+        const response = await request(app).get('/api/data');
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveLength(1);
+        expect(response.body[0].defer).toBe(deferDate);
+      });
+
+      it('setting due date does NOT wipe out existing defer date', async () => {
+        const deferDate = '2026-01-30T08:00:00.000Z';
+        const dueDate = '2026-02-15T08:00:00.000Z';
+
+        // First set a defer date
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ defer: deferDate });
+
+        // Verify defer is set
+        let content = fs.readFileSync(issuesFile, 'utf-8');
+        let savedIssue = JSON.parse(content.trim());
+        expect(savedIssue.defer).toBe(deferDate);
+
+        // Now set only the due date (NOT sending defer)
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ due: dueDate });
+
+        // Verify BOTH dates are present
+        content = fs.readFileSync(issuesFile, 'utf-8');
+        savedIssue = JSON.parse(content.trim());
+
+        expect(savedIssue.due).toBe(dueDate);
+        expect(savedIssue.defer).toBe(deferDate); // Should NOT be wiped out!
+      });
+
+      it('setting defer date does NOT wipe out existing due date', async () => {
+        const dueDate = '2026-02-15T08:00:00.000Z';
+        const deferDate = '2026-01-30T08:00:00.000Z';
+
+        // First set a due date
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ due: dueDate });
+
+        // Verify due is set
+        let content = fs.readFileSync(issuesFile, 'utf-8');
+        let savedIssue = JSON.parse(content.trim());
+        expect(savedIssue.due).toBe(dueDate);
+
+        // Now set only the defer date (NOT sending due)
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ defer: deferDate });
+
+        // Verify BOTH dates are present
+        content = fs.readFileSync(issuesFile, 'utf-8');
+        savedIssue = JSON.parse(content.trim());
+
+        expect(savedIssue.defer).toBe(deferDate);
+        expect(savedIssue.due).toBe(dueDate); // Should NOT be wiped out!
+      });
+    });
+  });
 });

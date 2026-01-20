@@ -213,15 +213,9 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
     };
 
     try {
-      // Read current issue data from JSONL BEFORE any bd commands
-      // This is critical because bd sync --flush-only will overwrite our direct JSONL edits
+      // Read current issue data for label diffing
       const allIssues = await readBeadsData(projectRoot);
       const currentIssue = allIssues.find(issue => issue.id === id);
-
-      // Preserve existing dates from JSONL (they may have been set by previous direct edits
-      // that bd's internal database doesn't know about)
-      const existingDue = currentIssue?.due;
-      const existingDefer = currentIssue?.defer;
 
       // Process each field that has a direct bd update flag
 
@@ -272,9 +266,6 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
           errors.push(`assignee: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
-
-      // NOTE: Due date and Defer date updates are done AFTER bd sync --flush-only
-      // because the sync would overwrite our direct JSONL changes
 
       // Description: bd update <id> --body-file=<tempfile>
       if (updates.description !== undefined) {
@@ -382,6 +373,32 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
         }
       }
 
+      // Due date: bd update <id> --due=...
+      if (updates.due !== undefined) {
+        try {
+          if (updates.due === '' || updates.due === null) {
+            await execBdCommand(`bd update ${id} --due=`);
+          } else {
+            await execBdCommand(`bd update ${id} --due="${updates.due}"`);
+          }
+        } catch (error) {
+          errors.push(`due: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      // Defer date: bd update <id> --defer=...
+      if (updates.defer !== undefined) {
+        try {
+          if (updates.defer === '' || updates.defer === null) {
+            await execBdCommand(`bd update ${id} --defer=`);
+          } else {
+            await execBdCommand(`bd update ${id} --defer="${updates.defer}"`);
+          }
+        } catch (error) {
+          errors.push(`defer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
       // Flush changes to JSONL file
       await new Promise<void>((resolve, _reject) => {
         exec('bd sync --flush-only', { cwd: projectRoot }, (syncError, _syncStdout, _syncStderr) => {
@@ -392,72 +409,6 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
           resolve();
         });
       });
-
-      // Due date and Defer date: Direct JSONL update AFTER bd sync
-      // (workaround for bd bug - bd update --due/--defer doesn't persist)
-      // Must be done after sync so our changes don't get overwritten
-      // ALSO: We must restore any existing dates that bd sync may have wiped out
-      const needsDateUpdate = updates.due !== undefined || updates.defer !== undefined || existingDue || existingDefer;
-      if (needsDateUpdate) {
-        try {
-          const issuesFile = path.join(projectRoot, '.beads', 'issues.jsonl');
-          if (fs.existsSync(issuesFile)) {
-            const content = fs.readFileSync(issuesFile, 'utf-8');
-            const lines = content.split('\n');
-            const updatedLines: string[] = [];
-
-            for (const line of lines) {
-              if (!line.trim()) {
-                updatedLines.push(line);
-                continue;
-              }
-              try {
-                const issue = JSON.parse(line);
-                if (issue.id === id) {
-                  // Determine final due date:
-                  // - If updates.due is explicitly set (including empty string to clear), use it
-                  // - Otherwise, restore the existing value that may have been wiped by sync
-                  if (updates.due !== undefined) {
-                    const dueStr = updates.due as string;
-                    if (!dueStr || dueStr === '') {
-                      delete issue.due;
-                    } else {
-                      issue.due = dueStr;
-                    }
-                  } else if (existingDue && !issue.due) {
-                    // Restore existing due that was wiped by bd sync
-                    issue.due = existingDue;
-                  }
-
-                  // Determine final defer date (same logic)
-                  if (updates.defer !== undefined) {
-                    const deferStr = updates.defer as string;
-                    if (!deferStr || deferStr === '') {
-                      delete issue.defer;
-                    } else {
-                      issue.defer = deferStr;
-                    }
-                  } else if (existingDefer && !issue.defer) {
-                    // Restore existing defer that was wiped by bd sync
-                    issue.defer = existingDefer;
-                  }
-
-                  issue.updated_at = new Date().toISOString();
-                  updatedLines.push(JSON.stringify(issue));
-                } else {
-                  updatedLines.push(line);
-                }
-              } catch {
-                updatedLines.push(line);
-              }
-            }
-
-            fs.writeFileSync(issuesFile, updatedLines.join('\n'));
-          }
-        } catch (error) {
-          errors.push(`dates: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      }
 
       // If there were any errors, return them but still report partial success
       if (errors.length > 0) {

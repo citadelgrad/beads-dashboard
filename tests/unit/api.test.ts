@@ -7,9 +7,15 @@ import os from 'os';
 import { createApiRouter } from '@server/routes/api';
 import type { Issue } from '@shared/types';
 
+// Track executed commands for verification
+const executedCommands: string[] = [];
+
 // Mock child_process exec
 vi.mock('child_process', () => {
   const execMock = vi.fn((cmd: string, options: any, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+    // Track the command
+    executedCommands.push(cmd);
+
     // Simulate successful command execution
     if (typeof callback === 'function') {
       setTimeout(() => {
@@ -55,6 +61,8 @@ describe('API Routes', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
     vi.clearAllMocks();
+    // Clear executed commands
+    executedCommands.length = 0;
   });
 
   describe('GET /api/data', () => {
@@ -192,9 +200,9 @@ describe('API Routes', () => {
       expect(response.body).toHaveProperty('error', 'No fields to update');
     });
 
-    describe('date field updates (due/defer)', () => {
+    describe('date field updates (due/defer) via bd update commands', () => {
       beforeEach(() => {
-        // Create an issue in the JSONL file
+        // Create an issue in the JSONL file for label diffing
         const issue: Partial<Issue> = {
           id: 'test-date-issue',
           title: 'Test Date Issue',
@@ -206,7 +214,7 @@ describe('API Routes', () => {
         fs.writeFileSync(issuesFile, JSON.stringify(issue));
       });
 
-      it('persists due date to JSONL file', async () => {
+      it('calls bd update with --due flag when due date is provided', async () => {
         const dueDate = '2026-02-15T08:00:00.000Z';
 
         const response = await request(app)
@@ -215,14 +223,14 @@ describe('API Routes', () => {
 
         expect(response.status).toBe(200);
 
-        // Read the JSONL file and verify the date was persisted
-        const content = fs.readFileSync(issuesFile, 'utf-8');
-        const savedIssue = JSON.parse(content.trim());
-
-        expect(savedIssue.due).toBe(dueDate);
+        // Verify bd update --due command was called
+        const dueCommand = executedCommands.find(cmd => cmd.includes('--due='));
+        expect(dueCommand).toBeDefined();
+        expect(dueCommand).toContain('bd update test-date-issue');
+        expect(dueCommand).toContain(`--due="${dueDate}"`);
       });
 
-      it('persists defer date to JSONL file', async () => {
+      it('calls bd update with --defer flag when defer date is provided', async () => {
         const deferDate = '2026-01-30T08:00:00.000Z';
 
         const response = await request(app)
@@ -231,14 +239,14 @@ describe('API Routes', () => {
 
         expect(response.status).toBe(200);
 
-        // Read the JSONL file and verify the date was persisted
-        const content = fs.readFileSync(issuesFile, 'utf-8');
-        const savedIssue = JSON.parse(content.trim());
-
-        expect(savedIssue.defer).toBe(deferDate);
+        // Verify bd update --defer command was called
+        const deferCommand = executedCommands.find(cmd => cmd.includes('--defer='));
+        expect(deferCommand).toBeDefined();
+        expect(deferCommand).toContain('bd update test-date-issue');
+        expect(deferCommand).toContain(`--defer="${deferDate}"`);
       });
 
-      it('persists both due and defer dates together', async () => {
+      it('calls bd update with both --due and --defer flags when both provided', async () => {
         const dueDate = '2026-02-15T08:00:00.000Z';
         const deferDate = '2026-01-30T08:00:00.000Z';
 
@@ -248,118 +256,137 @@ describe('API Routes', () => {
 
         expect(response.status).toBe(200);
 
-        // Read the JSONL file and verify both dates were persisted
-        const content = fs.readFileSync(issuesFile, 'utf-8');
-        const savedIssue = JSON.parse(content.trim());
+        // Verify both commands were called
+        const dueCommand = executedCommands.find(cmd => cmd.includes('--due='));
+        const deferCommand = executedCommands.find(cmd => cmd.includes('--defer='));
 
-        expect(savedIssue.due).toBe(dueDate);
-        expect(savedIssue.defer).toBe(deferDate);
+        expect(dueCommand).toBeDefined();
+        expect(dueCommand).toContain(`--due="${dueDate}"`);
+
+        expect(deferCommand).toBeDefined();
+        expect(deferCommand).toContain(`--defer="${deferDate}"`);
       });
 
-      it('clears due date when empty string provided', async () => {
-        // First set a due date
-        const issue = JSON.parse(fs.readFileSync(issuesFile, 'utf-8'));
-        issue.due = '2026-02-15T08:00:00.000Z';
-        fs.writeFileSync(issuesFile, JSON.stringify(issue));
-
-        // Now clear it
+      it('calls bd update with empty --due= to clear due date', async () => {
         const response = await request(app)
           .patch('/api/issues/test-date-issue')
           .send({ due: '' });
 
         expect(response.status).toBe(200);
 
-        // Read the JSONL file and verify the date was removed
-        const content = fs.readFileSync(issuesFile, 'utf-8');
-        const savedIssue = JSON.parse(content.trim());
-
-        expect(savedIssue.due).toBeUndefined();
+        // Verify bd update --due= (empty) command was called
+        const dueCommand = executedCommands.find(cmd => cmd.includes('--due='));
+        expect(dueCommand).toBeDefined();
+        expect(dueCommand).toContain('bd update test-date-issue --due=');
+        // Should NOT have a value after --due=
+        expect(dueCommand).not.toMatch(/--due="[^"]+"/);
       });
 
-      it('updates updated_at timestamp when saving dates', async () => {
-        const before = new Date().toISOString();
+      it('calls bd update with empty --defer= to clear defer date', async () => {
+        const response = await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ defer: '' });
 
+        expect(response.status).toBe(200);
+
+        // Verify bd update --defer= (empty) command was called
+        const deferCommand = executedCommands.find(cmd => cmd.includes('--defer='));
+        expect(deferCommand).toBeDefined();
+        expect(deferCommand).toContain('bd update test-date-issue --defer=');
+        // Should NOT have a value after --defer=
+        expect(deferCommand).not.toMatch(/--defer="[^"]+"/);
+      });
+
+      it('setting due date does NOT call --defer (independent updates)', async () => {
+        const dueDate = '2026-02-15T08:00:00.000Z';
+
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ due: dueDate });
+
+        // Verify only --due was called, not --defer
+        const dueCommand = executedCommands.find(cmd => cmd.includes('--due='));
+        const deferCommand = executedCommands.find(cmd => cmd.includes('--defer='));
+
+        expect(dueCommand).toBeDefined();
+        expect(deferCommand).toBeUndefined();
+      });
+
+      it('setting defer date does NOT call --due (independent updates)', async () => {
+        const deferDate = '2026-01-30T08:00:00.000Z';
+
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ defer: deferDate });
+
+        // Verify only --defer was called, not --due
+        const dueCommand = executedCommands.find(cmd => cmd.includes('--due='));
+        const deferCommand = executedCommands.find(cmd => cmd.includes('--defer='));
+
+        expect(deferCommand).toBeDefined();
+        expect(dueCommand).toBeUndefined();
+      });
+
+      it('calls bd sync --flush-only after date updates', async () => {
         await request(app)
           .patch('/api/issues/test-date-issue')
           .send({ due: '2026-02-15T08:00:00.000Z' });
 
-        const content = fs.readFileSync(issuesFile, 'utf-8');
-        const savedIssue = JSON.parse(content.trim());
-
-        expect(savedIssue.updated_at).toBeDefined();
-        expect(new Date(savedIssue.updated_at).getTime()).toBeGreaterThanOrEqual(
-          new Date(before).getTime()
-        );
+        // Verify sync was called
+        const syncCommand = executedCommands.find(cmd => cmd.includes('bd sync --flush-only'));
+        expect(syncCommand).toBeDefined();
       });
 
-      it('date persists after re-reading the file (simulating page reload)', async () => {
-        const deferDate = '2026-01-30T08:00:00.000Z';
-
-        // Save the date
+      it('emits refresh event after successful date update', async () => {
         await request(app)
           .patch('/api/issues/test-date-issue')
-          .send({ defer: deferDate });
+          .send({ due: '2026-02-15T08:00:00.000Z' });
 
-        // Simulate reload by fetching all data
-        const response = await request(app).get('/api/data');
+        expect(emitRefreshSpy).toHaveBeenCalled();
+      });
+    });
 
-        expect(response.status).toBe(200);
-        expect(response.body).toHaveLength(1);
-        expect(response.body[0].defer).toBe(deferDate);
+    describe('other field updates', () => {
+      beforeEach(() => {
+        const issue: Partial<Issue> = {
+          id: 'test-issue',
+          title: 'Test Issue',
+          status: 'open',
+          issue_type: 'task',
+          priority: 2,
+          created_at: '2024-01-01T00:00:00Z',
+        };
+        fs.writeFileSync(issuesFile, JSON.stringify(issue));
       });
 
-      it('setting due date does NOT wipe out existing defer date', async () => {
-        const deferDate = '2026-01-30T08:00:00.000Z';
-        const dueDate = '2026-02-15T08:00:00.000Z';
-
-        // First set a defer date
+      it('calls bd update with --title flag', async () => {
         await request(app)
-          .patch('/api/issues/test-date-issue')
-          .send({ defer: deferDate });
+          .patch('/api/issues/test-issue')
+          .send({ title: 'New Title' });
 
-        // Verify defer is set
-        let content = fs.readFileSync(issuesFile, 'utf-8');
-        let savedIssue = JSON.parse(content.trim());
-        expect(savedIssue.defer).toBe(deferDate);
-
-        // Now set only the due date (NOT sending defer)
-        await request(app)
-          .patch('/api/issues/test-date-issue')
-          .send({ due: dueDate });
-
-        // Verify BOTH dates are present
-        content = fs.readFileSync(issuesFile, 'utf-8');
-        savedIssue = JSON.parse(content.trim());
-
-        expect(savedIssue.due).toBe(dueDate);
-        expect(savedIssue.defer).toBe(deferDate); // Should NOT be wiped out!
+        const titleCommand = executedCommands.find(cmd => cmd.includes('--title='));
+        expect(titleCommand).toBeDefined();
+        expect(titleCommand).toContain('--title="New Title"');
       });
 
-      it('setting defer date does NOT wipe out existing due date', async () => {
-        const dueDate = '2026-02-15T08:00:00.000Z';
-        const deferDate = '2026-01-30T08:00:00.000Z';
-
-        // First set a due date
+      it('calls bd update with --status flag', async () => {
         await request(app)
-          .patch('/api/issues/test-date-issue')
-          .send({ due: dueDate });
+          .patch('/api/issues/test-issue')
+          .send({ status: 'in_progress' });
 
-        // Verify due is set
-        let content = fs.readFileSync(issuesFile, 'utf-8');
-        let savedIssue = JSON.parse(content.trim());
-        expect(savedIssue.due).toBe(dueDate);
+        const statusCommand = executedCommands.find(cmd => cmd.includes('--status='));
+        expect(statusCommand).toBeDefined();
+        expect(statusCommand).toContain('--status=in_progress');
+      });
 
-        // Now set only the defer date (NOT sending due)
+      it('calls bd update with --priority flag', async () => {
         await request(app)
-          .patch('/api/issues/test-date-issue')
-          .send({ defer: deferDate });
+          .patch('/api/issues/test-issue')
+          .send({ priority: 1 });
 
-        // Verify BOTH dates are present
-        content = fs.readFileSync(issuesFile, 'utf-8');
-        savedIssue = JSON.parse(content.trim());
-
-        expect(savedIssue.defer).toBe(deferDate);
-        expect(savedIssue.due).toBe(dueDate); // Should NOT be wiped out!
+        const priorityCommand = executedCommands.find(cmd => cmd.includes('--priority='));
+        expect(priorityCommand).toBeDefined();
+        expect(priorityCommand).toContain('--priority=1');
       });
     });
   });

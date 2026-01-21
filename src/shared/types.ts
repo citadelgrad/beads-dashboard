@@ -139,6 +139,13 @@ export interface UpdateIssuePriorityRequest {
   priority: Priority;
 }
 
+export interface CreateIssueRequest {
+  title: string;
+  description?: string;
+  issue_type?: ExtendedIssueType;
+  priority?: Priority;
+}
+
 // Extended issue type for all editable fields
 export type ExtendedIssueType =
   | 'bug'

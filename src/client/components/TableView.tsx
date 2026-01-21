@@ -24,6 +24,8 @@ import {
 import type { Issue, IssueStatus, Priority } from '@shared/types';
 import { PRIORITY_LABELS } from '@shared/types';
 import IssueEditorModal from './IssueEditorModal';
+import CopyableId from './CopyableId';
+import DateBadge from './DateBadge';
 
 interface TableViewProps {
   issues: Issue[];
@@ -767,20 +769,21 @@ function TableView({ issues }: TableViewProps) {
                       {/* ID */}
                       <div className="w-20 flex items-center gap-2">
                         <Boxes className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-                        <span className="font-mono text-sm text-slate-500">{shortId}</span>
+                        <CopyableId fullId={epic.id} displayId={shortId} showIcon={false} />
                       </div>
 
                       {/* Title */}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             openIssueEditor(epic);
                           }}
-                          className="font-medium text-slate-900 hover:text-blue-600 text-left truncate block w-full"
+                          className="font-medium text-slate-900 hover:text-blue-600 text-left truncate"
                         >
                           {epic.title || 'Untitled'}
                         </button>
+                        <DateBadge due={epic.due} defer={epic.defer} compact />
                       </div>
 
                       {/* Progress Bar */}
@@ -890,7 +893,7 @@ function TableView({ issues }: TableViewProps) {
                                 </span>
 
                                 {/* Child ID */}
-                                <span className="font-mono text-xs text-slate-400 w-12">{childShortId}</span>
+                                <CopyableId fullId={child.id} displayId={childShortId} showIcon={false} className="text-xs w-12" />
 
                                 {/* Type badge */}
                                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${childTypeInfo.class}`}>
@@ -904,6 +907,7 @@ function TableView({ issues }: TableViewProps) {
                                 >
                                   {child.title || 'Untitled'}
                                 </button>
+                                <DateBadge due={child.due} defer={child.defer} compact />
 
                                 {/* Priority */}
                                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${getPriorityStyle(child.priority)}`}>
@@ -969,7 +973,7 @@ function TableView({ issues }: TableViewProps) {
                     {/* ID */}
                     <div className="w-20 flex items-center gap-2">
                       {typeInfo.icon}
-                      <span className="font-mono text-sm text-slate-500">{shortId}</span>
+                      <CopyableId fullId={issue.id} displayId={shortId} showIcon={false} />
                     </div>
 
                     {/* Title */}
@@ -980,6 +984,7 @@ function TableView({ issues }: TableViewProps) {
                       >
                         {issue.title || 'Untitled'}
                       </button>
+                      <DateBadge due={issue.due} defer={issue.defer} compact />
                       {isStale && (
                         <span className="text-xs text-red-600 font-medium">{ageInDays}d</span>
                       )}

@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { readBeadsData } from '../utils/beadsReader.js';
-import type { UpdateIssueDescriptionRequest, UpdateIssueStatusRequest, UpdateIssuePriorityRequest, UpdateIssueRequest } from '@shared/types';
+import type { UpdateIssueDescriptionRequest, UpdateIssueStatusRequest, UpdateIssuePriorityRequest, UpdateIssueRequest, CreateIssueRequest } from '@shared/types';
 
 export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
   const router = express.Router();

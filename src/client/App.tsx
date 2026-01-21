@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { Issue, TimeGranularity } from '@shared/types';
+import type { Issue, TimeGranularity, CreateIssueRequest } from '@shared/types';
 import { useMetrics } from '@/hooks/useMetrics';
 import DashboardView from '@/components/DashboardView';
 import TableView from '@/components/TableView';
 import KanbanBoard from '@/components/KanbanBoard';
+import SearchBar from '@/components/SearchBar';
+import NewIssueButton from '@/components/NewIssueButton';
+import IssueCreatorModal from '@/components/IssueCreatorModal';
+import IssueEditorModal from '@/components/IssueEditorModal';
 
 function App() {
   const [parsedIssues, setParsedIssues] = useState<Issue[]>([]);
@@ -22,6 +26,10 @@ function App() {
     const saved = localStorage.getItem('beads-granularity');
     return (saved as TimeGranularity) || 'daily';
   });
+
+  // Global modal state (per arch review: keep local, use overlay layer)
+  const [globalModalIssue, setGlobalModalIssue] = useState<Issue | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const metrics = useMetrics(parsedIssues, granularity);
 
@@ -66,6 +74,77 @@ function App() {
     localStorage.setItem('beads-active-tab', activeTab);
   }, [activeTab]);
 
+  // Keyboard shortcuts (Cmd+Shift+K for search, Cmd+N for create)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if in input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Cmd+Shift+K or Ctrl+Shift+K for search
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'k') {
+        e.preventDefault();
+        if (searchFocusCallback.current) {
+          searchFocusCallback.current();
+        }
+      }
+
+      // Cmd+N or Ctrl+N for create
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        setCreateModalOpen(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // SearchBar focus callback ref
+  const searchFocusCallback = useRef<(() => void) | null>(null);
+
+  // Handle search selection (open in global modal)
+  const handleSearchSelect = useCallback((issue: Issue) => {
+    setGlobalModalIssue(issue);
+  }, []);
+
+  // Handle issue creation
+  const handleCreateIssue = useCallback(async (data: CreateIssueRequest) => {
+    const res = await fetch('/api/issues', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to create issue');
+    }
+
+    setCreateModalOpen(false);
+    // Data will refresh via socket
+  }, []);
+
+  // Handle issue save (for global modal)
+  const handleIssueSave = useCallback(async (updates: Partial<Issue>) => {
+    if (!globalModalIssue) return;
+
+    const res = await fetch(`/api/issues/${globalModalIssue.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to update issue');
+    }
+
+    setGlobalModalIssue(null);
+    // Data will refresh via socket
+  }, [globalModalIssue]);
+
   // Extract project name from issue IDs
   const projectName = parsedIssues.length > 0
     ? parsedIssues[0].id.substring(0, parsedIssues[0].id.lastIndexOf('-'))
@@ -92,6 +171,16 @@ function App() {
           <div className="text-xs text-slate-400">
             {loading ? 'Connecting...' : 'Connected'}
           </div>
+        </div>
+
+        {/* Search + Create row */}
+        <div className="flex items-center gap-4 mb-4">
+          <SearchBar
+            issues={parsedIssues}
+            onSelectIssue={handleSearchSelect}
+            onFocusRequest={(focusFn) => { searchFocusCallback.current = focusFn; }}
+          />
+          <NewIssueButton onClick={() => setCreateModalOpen(true)} />
         </div>
 
         {/* Tabs */}
@@ -146,6 +235,22 @@ function App() {
           metrics={metrics}
           granularity={granularity}
           onGranularityChange={setGranularity}
+        />
+      )}
+
+      {/* Global modals (overlay layer, per arch review) */}
+      {globalModalIssue && (
+        <IssueEditorModal
+          issue={globalModalIssue}
+          allIssues={parsedIssues}
+          onClose={() => setGlobalModalIssue(null)}
+          onSave={handleIssueSave}
+        />
+      )}
+      {createModalOpen && (
+        <IssueCreatorModal
+          onClose={() => setCreateModalOpen(false)}
+          onCreate={handleCreateIssue}
         />
       )}
     </div>

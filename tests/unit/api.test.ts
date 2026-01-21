@@ -19,7 +19,12 @@ vi.mock('child_process', () => {
     // Simulate successful command execution
     if (typeof callback === 'function') {
       setTimeout(() => {
-        callback(null, 'success', '');
+        // Return appropriate output based on command
+        if (cmd.includes('bd create')) {
+          callback(null, 'Created issue: test-new-123', '');
+        } else {
+          callback(null, 'success', '');
+        }
       }, 0);
     }
   });
@@ -388,6 +393,86 @@ describe('API Routes', () => {
         expect(priorityCommand).toBeDefined();
         expect(priorityCommand).toContain('--priority=1');
       });
+    });
+  });
+
+  describe('POST /api/issues', () => {
+    it('creates issue with title only and applies defaults', async () => {
+      const response = await request(app)
+        .post('/api/issues')
+        .send({ title: 'Test New Issue' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.id).toBe('test-new-123');
+
+      // Verify bd create was called with correct args
+      const createCommand = executedCommands.find(cmd => cmd.includes('bd create'));
+      expect(createCommand).toBeDefined();
+      expect(createCommand).toContain('--title="Test New Issue"');
+      expect(createCommand).toContain('--type=task');
+      expect(createCommand).toContain('--priority=2');
+    });
+
+    it('creates issue with all fields', async () => {
+      const response = await request(app)
+        .post('/api/issues')
+        .send({
+          title: 'Feature Request',
+          description: 'Detailed description here',
+          issue_type: 'feature',
+          priority: 1
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+
+      // Verify type and priority were passed
+      const createCommand = executedCommands.find(cmd => cmd.includes('bd create'));
+      expect(createCommand).toContain('--type=feature');
+      expect(createCommand).toContain('--priority=1');
+
+      // Verify description was set via body-file
+      const bodyFileCommand = executedCommands.find(cmd => cmd.includes('--body-file'));
+      expect(bodyFileCommand).toBeDefined();
+    });
+
+    it('returns 400 when title is missing', async () => {
+      const response = await request(app)
+        .post('/api/issues')
+        .send({ description: 'No title provided' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Title is required');
+    });
+
+    it('returns 400 when title is empty string', async () => {
+      const response = await request(app)
+        .post('/api/issues')
+        .send({ title: '   ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Title is required');
+    });
+
+    it('calls emitRefresh after successful creation', async () => {
+      await request(app)
+        .post('/api/issues')
+        .send({ title: 'Test Issue' });
+
+      // Wait for async operations
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(emitRefreshSpy).toHaveBeenCalled();
+    });
+
+    it('escapes double quotes in title', async () => {
+      await request(app)
+        .post('/api/issues')
+        .send({ title: 'Title with "quotes"' });
+
+      const createCommand = executedCommands.find(cmd => cmd.includes('bd create'));
+      expect(createCommand).toContain('--title="Title with \\"quotes\\""');
     });
   });
 });

@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { marked } from 'marked';
 import {
   AlertOctagon,
   AlertTriangle,
@@ -11,10 +10,12 @@ import {
   Boxes,
   ListCheck,
   X,
-  Edit2,
   GripVertical,
 } from 'lucide-react';
 import type { Issue, IssueStatus, Priority } from '@shared/types';
+import IssueEditorModal from './IssueEditorModal';
+import CopyableId from './CopyableId';
+import DateBadge from './DateBadge';
 
 interface KanbanBoardProps {
   issues: Issue[];
@@ -170,7 +171,7 @@ function KanbanCard({ issue, onDragStart, onTouchStart, onCardClick, isDragging 
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-slate-500 text-xs">
           {getTypeIcon(issue.issue_type)}
-          <span className="font-mono">{shortId}</span>
+          <CopyableId fullId={issue.id} displayId={shortId} showIcon={false} className="font-mono text-xs" />
         </div>
         <div className="flex items-center gap-1">
           {getPriorityIcon(issue.priority)}
@@ -183,7 +184,7 @@ function KanbanCard({ issue, onDragStart, onTouchStart, onCardClick, isDragging 
         {issue.title || 'Untitled'}
       </h3>
 
-      {/* Footer: Assignee, Age Badge */}
+      {/* Footer: Assignee, Date badges, Age Badge */}
       <div className="flex items-center justify-between">
         {/* Assignee avatar/initials */}
         <div
@@ -193,10 +194,13 @@ function KanbanCard({ issue, onDragStart, onTouchStart, onCardClick, isDragging 
           {getInitials(issue.assignee)}
         </div>
 
-        {/* Age badge */}
-        <span className={`text-xs px-2 py-0.5 rounded-full ${ageBadgeColor}`}>
-          {ageDays}d
-        </span>
+        {/* Due/Defer badges + Age badge */}
+        <div className="flex items-center gap-1">
+          <DateBadge due={issue.due} defer={issue.defer} compact />
+          <span className={`text-xs px-2 py-0.5 rounded-full ${ageBadgeColor}`}>
+            {ageDays}d
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -279,10 +283,7 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
   const [optimisticIssues, setOptimisticIssues] = useState<Issue[]>(issues);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeDescription, setActiveDescription] = useState<Issue | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
 
   // Touch drag state
   const touchRef = useRef<{ issue: Issue; startX: number; startY: number } | null>(null);
@@ -455,45 +456,37 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
     setDropTarget(null);
   }, []);
 
-  // Card click handler - open description modal
+  // Card click handler - open editor modal
   const handleCardClick = useCallback((issue: Issue) => {
     // Don't open modal if we're in the middle of a drag
     if (draggingIssue) return;
-    setActiveDescription(issue);
-    setEditValue(issue.description || '');
-    setIsEditing(false);
+    setSelectedIssue(issue);
   }, [draggingIssue]);
 
-  const closeDescription = () => {
-    setActiveDescription(null);
-    setIsEditing(false);
-    setSaving(false);
-  };
+  // Close the editor modal
+  const handleCloseModal = useCallback(() => {
+    setSelectedIssue(null);
+  }, []);
 
-  const handleSave = async () => {
-    if (!activeDescription) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/issues/${activeDescription.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: editValue }),
-      });
-      if (!res.ok) throw new Error('Failed to update');
-      closeDescription();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to save description');
-      setSaving(false);
+  // Save handler for the editor modal - calls PATCH API
+  const handleSaveIssue = useCallback(async (updates: Partial<Issue>) => {
+    if (!selectedIssue) return;
+
+    console.log('[DEBUG] Saving issue updates:', JSON.stringify(updates, null, 2));
+
+    const res = await fetch(`/api/issues/${selectedIssue.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || 'Failed to update issue');
     }
-  };
 
-  // Note: dangerouslySetInnerHTML is used here for rendering markdown content from
-  // the user's local issue database, following the same pattern as TableView.tsx.
-  // The content is user-owned data stored locally, not untrusted external input.
-  const renderMarkdown = (content: string) => {
-    return { __html: marked.parse(content) as string };
-  };
+    // The socket.io refresh will update the issues automatically
+  }, [selectedIssue]);
 
   return (
     <div onDragEnd={handleDragEnd}>
@@ -535,81 +528,14 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
         ))}
       </div>
 
-      {/* Description Modal */}
-      {activeDescription && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-start p-6 border-b border-slate-100">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900">{activeDescription.title}</h3>
-                <p className="text-sm text-slate-500 font-mono mt-1">{activeDescription.id}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {!isEditing && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="text-slate-400 hover:text-blue-600 transition-colors p-1"
-                    title="Edit Description"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  onClick={closeDescription}
-                  className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              {isEditing ? (
-                <textarea
-                  className="w-full h-64 p-3 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  placeholder="Enter issue description..."
-                />
-              ) : activeDescription.description ? (
-                <div
-                  className="prose prose-sm max-w-none text-slate-700"
-                  dangerouslySetInnerHTML={renderMarkdown(activeDescription.description)}
-                />
-              ) : (
-                <div className="text-slate-400 italic text-center py-8">
-                  No description provided for this issue.
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-end gap-3">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    disabled={saving}
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={closeDescription}
-                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
-                >
-                  Close
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Issue Editor Modal */}
+      {selectedIssue && (
+        <IssueEditorModal
+          issue={selectedIssue}
+          allIssues={issues}
+          onClose={handleCloseModal}
+          onSave={handleSaveIssue}
+        />
       )}
     </div>
   );

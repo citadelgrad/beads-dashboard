@@ -12,10 +12,12 @@ import { beadsDirectoryExists } from './utils/beadsReader.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Parse command line arguments
+// Parse command line arguments and environment variables
 const args = minimist(process.argv.slice(2));
-const projectRoot = args._[0] || process.cwd();
-const PORT = args.port || 3001; // Changed from 3000 to 3001 for dev mode (Vite uses 3000)
+const projectRoot = args._[0] || process.env.BEADS_PROJECT || process.cwd();
+// In dev mode, backend runs on BEADS_PORT + 1 (Vite serves frontend on BEADS_PORT)
+const basePort = Number(process.env.BEADS_PORT) || 3199;
+const PORT = args.port || (process.env.NODE_ENV === 'production' ? basePort : basePort + 1);
 
 // Create Express app and HTTP server
 const app = express();

@@ -33,7 +33,7 @@ ARGUMENTS:
                   (default: current directory)
 
 OPTIONS:
-  --port=PORT     Port to run the server on (default: 3001)
+  --port=PORT     Port to run the server on (default: 3199)
   --version, -v   Show version number
   --help, -h      Show this help message
 
@@ -50,7 +50,7 @@ EXAMPLES:
   # Run for specific project on custom port
   beads-dashboard /path/to/my-project --port=8080
 
-Once running, open http://localhost:3001 (or your custom port) in your browser
+Once running, open http://localhost:3199 (or your custom port) in your browser
 to view the dashboard. The dashboard will automatically refresh when your
 .beads/issues.jsonl file changes.
 

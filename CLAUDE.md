@@ -19,8 +19,8 @@ npm install
 
 # Run in development mode (HMR enabled)
 npm run dev
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:3001
+# Frontend: http://localhost:3199
+# Backend API: http://localhost:3200
 
 # Run tests
 npm test
@@ -55,7 +55,7 @@ beads-dashboard
 # Run against a specific project
 beads-dashboard /path/to/project
 
-# Use custom port (default: 3001 in dev, 3001 in prod)
+# Use custom port (default: 3199 in prod, 3200 in dev)
 beads-dashboard --port=8080
 ```
 
@@ -326,8 +326,8 @@ Essential coverage achieved:
 npm run dev
 ```
 
-- Frontend: Vite dev server on `http://localhost:3000` with HMR
-- Backend: TSX runs TypeScript server on `http://localhost:3001`
+- Frontend: Vite dev server on `http://localhost:3199` with HMR
+- Backend: TSX runs TypeScript server on `http://localhost:3200`
 - Vite proxies API requests to backend
 - Changes to TypeScript files trigger automatic reload
 

@@ -183,7 +183,8 @@ describe('calculateLeadTime', () => {
 
     const result = calculateLeadTime(issues);
     expect(result).toHaveLength(1);
-    expect(result[0].cycleTime).toBe(2);
+    expect(result[0].cycleTimeDays).toBe(2);
+    expect(result[0].cycleTimeHours).toBe(48);
     expect(result[0].id).toBe('closed-1');
   });
 
@@ -193,12 +194,13 @@ describe('calculateLeadTime', () => {
         id: 'same-day',
         status: 'closed',
         created_at: '2024-01-01T09:00:00Z',
-        updated_at: '2024-01-01T17:00:00Z',
+        updated_at: '2024-01-01T17:00:00Z', // 8 hours later
       }),
     ];
 
     const result = calculateLeadTime(issues);
-    expect(result[0].cycleTime).toBe(1); // Math.ceil ensures minimum 1 day
+    expect(result[0].cycleTimeHours).toBe(8);
+    expect(result[0].cycleTimeDays).toBeCloseTo(8 / 24, 5);
   });
 
   it('sorts by close date', () => {
@@ -269,7 +271,8 @@ describe('calculateAgingWIP', () => {
     ];
 
     const result = calculateAgingWIP(issues, today);
-    expect(result[0].age).toBe(10);
+    expect(result[0].ageDays).toBe(10);
+    expect(result[0].ageHours).toBe(10 * 24);
   });
 
   it('colors based on age thresholds', () => {
@@ -390,25 +393,32 @@ describe('calculateAverageAge', () => {
   const today = new Date('2024-01-15T00:00:00Z');
 
   it('returns 0 for no issues', () => {
-    expect(calculateAverageAge([], today)).toBe(0);
+    const result = calculateAverageAge([], today);
+    expect(result.value).toBe(0);
+    expect(result.formatted).toBe('0d');
+    expect(result.unit).toBe('days');
   });
 
   it('returns 0 for only closed issues', () => {
     const issues: Issue[] = [
       createIssue({ status: 'closed', created_at: '2024-01-01T00:00:00Z' }),
     ];
-    expect(calculateAverageAge(issues, today)).toBe(0);
+    const result = calculateAverageAge(issues, today);
+    expect(result.value).toBe(0);
   });
 
   it('calculates average age correctly', () => {
     const issues: Issue[] = [
-      createIssue({ id: '1', created_at: '2024-01-05T00:00:00Z' }), // 10 days
-      createIssue({ id: '2', created_at: '2024-01-10T00:00:00Z' }), // 5 days
-      createIssue({ id: '3', created_at: '2024-01-15T00:00:00Z' }), // 0 days
+      createIssue({ id: '1', created_at: '2024-01-05T00:00:00Z' }), // 10 days = 240 hours
+      createIssue({ id: '2', created_at: '2024-01-10T00:00:00Z' }), // 5 days = 120 hours
+      createIssue({ id: '3', created_at: '2024-01-15T00:00:00Z' }), // 0 days = 0 hours
     ];
 
-    const avg = calculateAverageAge(issues, today);
-    expect(avg).toBe(5); // (10 + 5 + 0) / 3 = 5
+    const result = calculateAverageAge(issues, today);
+    // Average in hours: (240 + 120 + 0) / 3 = 120 hours = 5 days
+    expect(result.value).toBe(120);
+    expect(result.formatted).toBe('5.0d');
+    expect(result.unit).toBe('days');
   });
 });
 

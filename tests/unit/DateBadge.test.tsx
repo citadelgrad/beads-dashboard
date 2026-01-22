@@ -3,10 +3,16 @@ import { render, screen } from '@testing-library/react';
 import DateBadge from '@/components/DateBadge';
 
 // Helper to create dates relative to "today"
+// Returns date string with time component to ensure local time parsing
 const createDate = (daysFromToday: number): string => {
   const date = new Date();
+  date.setHours(12, 0, 0, 0); // Set to noon to avoid day boundary issues
   date.setDate(date.getDate() + daysFromToday);
-  return date.toISOString().split('T')[0];
+  // Format as YYYY-MM-DDTHH:mm:ss (no timezone) so it's parsed as local time
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}T12:00:00`;
 };
 
 describe('DateBadge', () => {

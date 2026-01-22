@@ -41,13 +41,23 @@ async function isProcessRunning(pid: number): Promise<boolean> {
 
 /**
  * Get all beads projects from registry with status information
- * @returns Promise<BeadsProject[]> - Array of projects with metadata
+ * Filters out projects that no longer exist or don't have a .beads directory
+ * @returns Promise<BeadsProject[]> - Array of valid projects with metadata
  */
 export async function getBeadsProjects(): Promise<BeadsProject[]> {
   const registryEntries = await readBeadsRegistry();
 
+  // Filter out invalid projects (deleted or missing .beads directory)
+  const validEntries = registryEntries.filter((entry) => {
+    const isValid = isValidBeadsProject(entry.workspace_path);
+    if (!isValid) {
+      console.log(`Filtering out invalid/deleted project: ${entry.workspace_path}`);
+    }
+    return isValid;
+  });
+
   const projects: BeadsProject[] = await Promise.all(
-    registryEntries.map(async (entry) => {
+    validEntries.map(async (entry) => {
       // Extract project name from workspace path (last directory)
       const name = path.basename(entry.workspace_path);
 

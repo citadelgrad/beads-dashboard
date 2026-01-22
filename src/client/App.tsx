@@ -32,7 +32,21 @@ function App() {
   const [globalModalIssue, setGlobalModalIssue] = useState<Issue | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
+  // Current project path from server
+  const [currentProjectPath, setCurrentProjectPath] = useState<string>('');
+
   const metrics = useMetrics(parsedIssues, granularity);
+
+  const fetchCurrentProject = async () => {
+    try {
+      const res = await fetch('/api/project/current');
+      if (!res.ok) throw new Error('Failed to fetch current project');
+      const data = await res.json();
+      setCurrentProjectPath(data.path || '');
+    } catch (err) {
+      console.error('Failed to fetch current project:', err);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -51,6 +65,7 @@ function App() {
 
   useEffect(() => {
     fetchData();
+    fetchCurrentProject();
 
     const socketInstance = io();
     setSocket(socketInstance);
@@ -58,6 +73,7 @@ function App() {
     socketInstance.on('refresh', () => {
       console.log('Data changed, reloading...');
       fetchData();
+      fetchCurrentProject();
     });
 
     return () => {
@@ -141,9 +157,9 @@ function App() {
     // Data will refresh via socket
   }, [globalModalIssue]);
 
-  // Extract project name from issue IDs
-  const projectName = parsedIssues.length > 0
-    ? parsedIssues[0].id.substring(0, parsedIssues[0].id.lastIndexOf('-'))
+  // Extract project name from current project path
+  const projectName = currentProjectPath
+    ? currentProjectPath.split('/').pop() || 'Unknown'
     : '';
 
   // Filter out tombstones for display count

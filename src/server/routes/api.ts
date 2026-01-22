@@ -428,6 +428,88 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
   });
 
   /**
+   * POST /api/issues
+   * Creates a new issue via bd create command
+   */
+  router.post('/issues', async (req: Request, res: Response) => {
+    const { title, description, issue_type, priority } = req.body as {
+      title: string;
+      description?: string;
+      issue_type?: string;
+      priority?: number;
+    };
+
+    if (!title || title.trim().length === 0) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    try {
+      // Build the bd create command
+      const escapedTitle = title.replace(/"/g, '\\"');
+      const type = issue_type || 'task';
+      const prio = priority !== undefined ? priority : 2;
+
+      let createCommand = `bd create --title="${escapedTitle}" --type=${type} --priority=${prio}`;
+
+      // Execute bd create
+      const createResult = await new Promise<string>((resolve, reject) => {
+        exec(createCommand, { cwd: projectManager.getProjectRoot() }, (error, stdout, stderr) => {
+          if (error) {
+            console.error(`exec error: ${error}`);
+            return reject(new Error(stderr || error.message));
+          }
+          resolve(stdout);
+        });
+      });
+
+      // Extract issue ID from output (format: "Created issue: <id>")
+      const idMatch = createResult.match(/Created issue:\s*(\S+)/i);
+      const issueId = idMatch ? idMatch[1] : null;
+
+      // If description is provided, update it separately
+      if (description && description.trim().length > 0 && issueId) {
+        const tempFile = path.join(process.cwd(), `desc-${Date.now()}.txt`);
+        try {
+          fs.writeFileSync(tempFile, description);
+          await new Promise<void>((resolve, reject) => {
+            exec(`bd update ${issueId} --body-file "${tempFile}"`, { cwd: projectManager.getProjectRoot() }, (error, _stdout, stderr) => {
+              if (fs.existsSync(tempFile)) {
+                fs.unlinkSync(tempFile);
+              }
+              if (error) {
+                console.error(`exec error: ${error}`);
+                return reject(new Error(stderr || error.message));
+              }
+              resolve();
+            });
+          });
+        } catch (descError) {
+          // Log but don't fail - issue was created, just description update failed
+          console.error('Failed to set description:', descError);
+        }
+      }
+
+      // Flush changes to JSONL file
+      await new Promise<void>((resolve, _reject) => {
+        exec('bd sync --flush-only', { cwd: projectManager.getProjectRoot() }, (syncError) => {
+          if (syncError) {
+            console.error(`sync error: ${syncError}`);
+          }
+          resolve();
+        });
+      });
+
+      res.json({ success: true, id: issueId });
+
+      // Manually trigger refresh after sync
+      emitRefresh();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  /**
    * GET /api/registry
    * Returns all beads projects from ~/.beads/registry.json
    */

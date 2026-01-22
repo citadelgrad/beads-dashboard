@@ -577,49 +577,52 @@ function TableView({ issues }: TableViewProps) {
   return (
     <>
       <div className="card overflow-hidden">
-        {/* View Toggle */}
-        <div className="p-4 border-b border-slate-200 bg-slate-50/50">
-          <div className="flex items-center justify-end">
-            {/* Epics View Toggle */}
+        {/* Toolbar: View Toggle + Filters */}
+        <div className="px-4 py-2 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+          {/* View Toggle - Left */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowEpicsView(!showEpicsView)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                showEpicsView
-                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                  : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+              onClick={() => setShowEpicsView(false)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                !showEpicsView
+                  ? 'bg-slate-200 text-slate-700'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
               }`}
-              title={showEpicsView ? 'Switch to flat list view' : 'Switch to epics view'}
+              title="Switch to flat list view"
             >
-              {showEpicsView ? (
-                <>
-                  <Network className="w-4 h-4" />
-                  <span>Epics View</span>
-                </>
-              ) : (
-                <>
-                  <LayoutList className="w-4 h-4" />
-                  <span>Flat List</span>
-                </>
-              )}
+              <LayoutList className="w-3.5 h-3.5" />
+              <span>List</span>
             </button>
-          </div>
-        </div>
-
-        {/* Clear All Filters Button */}
-        {hasActiveFilters && (
-          <div className="px-4 py-2 border-b border-slate-200 bg-blue-50/50 flex items-center justify-between">
-            <span className="text-xs text-slate-600">
-              {statusFilter.length + typeFilter.length + priorityFilter.length} filter(s) active
-            </span>
             <button
-              onClick={clearAllFilters}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              onClick={() => setShowEpicsView(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                showEpicsView
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+              }`}
+              title="Switch to epics view"
             >
-              <FilterX className="w-3.5 h-3.5" />
-              Clear All Filters
+              <Network className="w-3.5 h-3.5" />
+              <span>Epics</span>
             </button>
           </div>
-        )}
+
+          {/* Filters Info - Right */}
+          {hasActiveFilters && (
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500">
+                {statusFilter.length + typeFilter.length + priorityFilter.length} filter(s)
+              </span>
+              <button
+                onClick={clearAllFilters}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              >
+                <FilterX className="w-3.5 h-3.5" />
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Shared Header Row */}
         <div className="flex items-center gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">

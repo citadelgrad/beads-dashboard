@@ -322,7 +322,7 @@ function IssueEditorModal({ issue, allIssues = [], onClose, onSave }: IssueEdito
         <div className="flex justify-between items-start p-6 border-b border-slate-100">
           <button
             onClick={handleCopyId}
-            className="group flex items-center gap-2 text-sm text-slate-500 font-mono hover:text-slate-700 transition-colors"
+            className="group relative flex items-center gap-2 text-sm text-slate-500 font-mono hover:text-slate-700 transition-colors"
             title="Click to copy issue ID"
           >
             <span className={`transition-all duration-300 ${copied ? 'text-green-600' : ''}`}>
@@ -335,9 +335,11 @@ function IssueEditorModal({ issue, allIssues = [], onClose, onSave }: IssueEdito
                 <Copy className="w-4 h-4" />
               )}
             </span>
+            {/* Floating tooltip */}
             {copied && (
-              <span className="text-xs text-green-600 animate-pulse">
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs font-medium text-white bg-green-600 rounded shadow-lg whitespace-nowrap animate-in fade-in zoom-in-95 duration-200">
                 Copied!
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-green-600 rotate-45" />
               </span>
             )}
           </button>

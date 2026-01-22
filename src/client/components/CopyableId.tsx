@@ -17,7 +17,7 @@ function CopyableId({ fullId, displayId, className = '', showIcon = true }: Copy
     try {
       await navigator.clipboard.writeText(fullId);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500); // 1.5s per arch review
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
       // Fallback for older browsers
@@ -31,7 +31,7 @@ function CopyableId({ fullId, displayId, className = '', showIcon = true }: Copy
         document.execCommand('copy');
         document.body.removeChild(textArea);
         setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        setTimeout(() => setCopied(false), 2000);
       } catch (fallbackErr) {
         console.error('Fallback copy failed:', fallbackErr);
       }
@@ -43,15 +43,24 @@ function CopyableId({ fullId, displayId, className = '', showIcon = true }: Copy
   return (
     <button
       onClick={handleCopy}
-      className={`inline-flex items-center gap-1 font-mono text-sm text-slate-500
-                  hover:text-blue-600 transition-colors cursor-pointer ${className}`}
+      className={`group relative inline-flex items-center gap-1.5 font-mono text-sm text-slate-500
+                  hover:text-slate-700 transition-colors cursor-pointer ${className}`}
       title={copied ? 'Copied!' : `Click to copy: ${fullId}`}
       aria-label={copied ? 'Copied to clipboard' : `Copy ${fullId} to clipboard`}
     >
-      <span>{display}</span>
+      <span className={`transition-all duration-300 ${copied ? 'text-green-600' : ''}`}>
+        {display}
+      </span>
       {showIcon && (
-        <span className={`transition-all duration-200 ${copied ? 'text-green-500' : 'text-slate-400'}`}>
+        <span className={`transition-all duration-300 ${copied ? 'text-green-600 scale-110' : 'text-slate-400 group-hover:text-slate-600'}`}>
           {copied ? <Check className="w-3.5 h-3.5" aria-hidden="true" /> : <Copy className="w-3.5 h-3.5" aria-hidden="true" />}
+        </span>
+      )}
+      {/* Floating tooltip */}
+      {copied && (
+        <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-1 text-xs font-medium text-white bg-green-600 rounded shadow-lg whitespace-nowrap animate-in fade-in zoom-in-95 duration-200">
+          Copied!
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-green-600 rotate-45" />
         </span>
       )}
     </button>

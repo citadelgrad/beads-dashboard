@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Copy, Check } from 'lucide-react';
 import type { Issue, IssueStatus, Priority, IssueDependency } from '@shared/types';
 import TitleSection from './TitleSection';
 import MarkdownSection from './MarkdownSection';
@@ -70,6 +70,20 @@ function IssueEditorModal({ issue, allIssues = [], onClose, onSave }: IssueEdito
   // Saving state
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Copy to clipboard state
+  const [copied, setCopied] = useState(false);
+
+  // Handle copy issue ID to clipboard
+  const handleCopyId = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(issue.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy issue ID:', err);
+    }
+  }, [issue.id]);
 
   // Update dirty state when form values change
   useEffect(() => {
@@ -306,9 +320,27 @@ function IssueEditorModal({ issue, allIssues = [], onClose, onSave }: IssueEdito
       <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex justify-between items-start p-6 border-b border-slate-100">
-          <div>
-            <p className="text-sm text-slate-500 font-mono">{issue.id}</p>
-          </div>
+          <button
+            onClick={handleCopyId}
+            className="group flex items-center gap-2 text-sm text-slate-500 font-mono hover:text-slate-700 transition-colors"
+            title="Click to copy issue ID"
+          >
+            <span className={`transition-all duration-300 ${copied ? 'text-green-600' : ''}`}>
+              {issue.id}
+            </span>
+            <span className={`transition-all duration-300 ${copied ? 'text-green-600 scale-110' : 'text-slate-400 group-hover:text-slate-600'}`}>
+              {copied ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </span>
+            {copied && (
+              <span className="text-xs text-green-600 animate-pulse">
+                Copied!
+              </span>
+            )}
+          </button>
           <button
             onClick={handleClose}
             className="text-slate-400 hover:text-slate-600 transition-colors p-1"

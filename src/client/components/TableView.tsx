@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Play,
   Check,
-  Search,
   LayoutList,
   Network,
 } from 'lucide-react';
@@ -578,19 +577,9 @@ function TableView({ issues }: TableViewProps) {
   return (
     <>
       <div className="card overflow-hidden">
-        {/* Search Control and View Toggle */}
+        {/* View Toggle */}
         <div className="p-4 border-b border-slate-200 bg-slate-50/50">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                placeholder="Filter by ID, Title, Status, Type, or Priority..."
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-                value={filterText}
-                onChange={(e) => setFilterText(e.target.value)}
-              />
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            </div>
+          <div className="flex items-center justify-end">
             {/* Epics View Toggle */}
             <button
               onClick={() => setShowEpicsView(!showEpicsView)}

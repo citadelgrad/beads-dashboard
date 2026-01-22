@@ -74,24 +74,19 @@ function App() {
     localStorage.setItem('beads-active-tab', activeTab);
   }, [activeTab]);
 
-  // Keyboard shortcuts (Cmd+Shift+K for search, Cmd+N for create)
+  // Keyboard shortcut: "c" for create new issue (like Gmail's compose)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if in input/textarea
+      // Skip if in input/textarea or if modifiers are pressed
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
-
-      // Cmd+Shift+K or Ctrl+Shift+K for search
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'k') {
-        e.preventDefault();
-        if (searchFocusCallback.current) {
-          searchFocusCallback.current();
-        }
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        return;
       }
 
-      // Cmd+N or Ctrl+N for create
-      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+      // "c" for create new issue
+      if (e.key === 'c') {
         e.preventDefault();
         setCreateModalOpen(true);
       }

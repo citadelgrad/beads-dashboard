@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import type { Issue, IssueStatus, Priority } from '@shared/types';
 import { PRIORITY_LABELS } from '@shared/types';
+import { compareIdsNaturally } from '../utils/sortUtils';
 import IssueEditorModal from './IssueEditorModal';
 import CopyableId from './CopyableId';
 import DateBadge from './DateBadge';
@@ -138,7 +139,7 @@ function TableView({ issues }: TableViewProps) {
 
       switch (sortColumn) {
         case 'id':
-          comparison = a.id.localeCompare(b.id);
+          comparison = compareIdsNaturally(a.id, b.id);
           break;
         case 'title':
           comparison = (a.title || '').localeCompare(b.title || '');
@@ -395,7 +396,7 @@ function TableView({ issues }: TableViewProps) {
       let comparison = 0;
       switch (sortColumn) {
         case 'id':
-          comparison = a.epic.id.localeCompare(b.epic.id);
+          comparison = compareIdsNaturally(a.epic.id, b.epic.id);
           break;
         case 'title':
           comparison = (a.epic.title || '').localeCompare(b.epic.title || '');

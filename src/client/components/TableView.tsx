@@ -607,18 +607,64 @@ function TableView({ issues }: TableViewProps) {
             </button>
           </div>
 
-          {/* Filters Info - Right */}
+          {/* Active Filters - Right */}
           {hasActiveFilters && (
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-500">
-                {statusFilter.length + typeFilter.length + priorityFilter.length} filter(s)
-              </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Status filter chips */}
+              {statusFilter.map((status) => (
+                <span
+                  key={`status-${status}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium"
+                >
+                  {status}
+                  <button
+                    onClick={() => setStatusFilter(statusFilter.filter((s) => s !== status))}
+                    className="hover:text-blue-900"
+                    aria-label={`Remove ${status} filter`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {/* Type filter chips */}
+              {typeFilter.map((type) => (
+                <span
+                  key={`type-${type}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium"
+                >
+                  {type}
+                  <button
+                    onClick={() => setTypeFilter(typeFilter.filter((t) => t !== type))}
+                    className="hover:text-purple-900"
+                    aria-label={`Remove ${type} filter`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {/* Priority filter chips */}
+              {priorityFilter.map((priority) => (
+                <span
+                  key={`priority-${priority}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium"
+                >
+                  {PRIORITY_LABELS[priority]}
+                  <button
+                    onClick={() => setPriorityFilter(priorityFilter.filter((p) => p !== priority))}
+                    className="hover:text-amber-900"
+                    aria-label={`Remove ${PRIORITY_LABELS[priority]} filter`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {/* Clear all button */}
               <button
                 onClick={clearAllFilters}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                className="text-xs text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1 ml-1"
+                title="Clear all filters"
               >
                 <FilterX className="w-3.5 h-3.5" />
-                Clear
               </button>
             </div>
           )}

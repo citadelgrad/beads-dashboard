@@ -9,6 +9,7 @@ import SearchBar from '@/components/SearchBar';
 import NewIssueButton from '@/components/NewIssueButton';
 import IssueCreatorModal from '@/components/IssueCreatorModal';
 import IssueEditorModal from '@/components/IssueEditorModal';
+import ProjectSwitcher from '@/components/ProjectSwitcher';
 
 function App() {
   const [parsedIssues, setParsedIssues] = useState<Issue[]>([]);
@@ -152,13 +153,13 @@ function App() {
     <div className="max-w-6xl mx-auto p-8">
       <header className="mb-8">
         <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {projectName && (
-                <span className="text-slate-500 font-normal">{projectName} / </span>
-              )}
-              Beads Performance Dashboard
-            </h1>
+          <div className="flex-1">
+            <div className="flex items-center gap-4 mb-2">
+              <h1 className="text-2xl font-bold text-slate-900">
+                Beads Performance Dashboard
+              </h1>
+              {projectName && <ProjectSwitcher currentProjectName={projectName} />}
+            </div>
             <p className="text-slate-500 text-sm">
               Live View • {activeIssuesCount} issues loaded
             </p>

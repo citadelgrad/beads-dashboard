@@ -188,6 +188,26 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
+// Beads registry entry (from ~/.beads/registry.json)
+export interface BeadsRegistryEntry {
+  workspace_path: string;
+  socket_path: string;
+  database_path: string;
+  pid: number;
+  version: string;
+  started_at: string;
+}
+
+// Registry response with project name extracted
+export interface BeadsProject {
+  name: string; // Extracted from workspace_path
+  path: string; // Full workspace_path
+  isActive: boolean; // Whether daemon is running
+  pid?: number;
+  version?: string;
+  started_at?: string;
+}
+
 // Priority display labels
 export const PRIORITY_LABELS: Record<Priority, string> = {
   0: 'Critical',

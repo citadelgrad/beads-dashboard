@@ -3,9 +3,11 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { readBeadsData } from '../utils/beadsReader.js';
-import type { UpdateIssueDescriptionRequest, UpdateIssueStatusRequest, UpdateIssuePriorityRequest, UpdateIssueRequest, CreateIssueRequest } from '@shared/types';
+import { getBeadsProjects, isValidBeadsProject } from '../utils/registryReader.js';
+import type { ProjectManager } from '../utils/projectManager.js';
+import type { UpdateIssueDescriptionRequest, UpdateIssueStatusRequest, UpdateIssuePriorityRequest, UpdateIssueRequest } from '@shared/types';
 
-export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
+export function createApiRouter(projectManager: ProjectManager, emitRefresh: () => void) {
   const router = express.Router();
 
   /**
@@ -14,7 +16,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
    */
   router.get('/data', async (_req: Request, res: Response) => {
     try {
-      const data = await readBeadsData(projectRoot);
+      const data = await readBeadsData(projectManager.getProjectRoot());
       res.json(data);
     } catch (err) {
       console.error(err);
@@ -41,7 +43,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
       fs.writeFileSync(tempFile, description);
 
       await new Promise<void>((resolve, reject) => {
-        exec(`bd update ${id} --body-file "${tempFile}"`, { cwd: projectRoot }, (error, _stdout, stderr) => {
+        exec(`bd update ${id} --body-file "${tempFile}"`, { cwd: projectManager.getProjectRoot() }, (error, _stdout, stderr) => {
           fs.unlinkSync(tempFile); // cleanup
 
           if (error) {
@@ -55,7 +57,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
 
       // Flush changes to JSONL file
       await new Promise<void>((resolve, _reject) => {
-        exec('bd sync --flush-only', { cwd: projectRoot }, (syncError, _syncStdout, _syncStderr) => {
+        exec('bd sync --flush-only', { cwd: projectManager.getProjectRoot() }, (syncError, _syncStdout, _syncStderr) => {
           if (syncError) {
             console.error(`sync error: ${syncError}`);
             // Don't fail the request if sync fails
@@ -93,7 +95,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        exec(`bd update ${id} --status=${status}`, { cwd: projectRoot }, (error, _stdout, stderr) => {
+        exec(`bd update ${id} --status=${status}`, { cwd: projectManager.getProjectRoot() }, (error, _stdout, stderr) => {
           if (error) {
             console.error(`exec error: ${error}`);
             return reject(new Error(stderr || error.message));
@@ -104,7 +106,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
 
       // Flush changes to JSONL file
       await new Promise<void>((resolve, _reject) => {
-        exec('bd sync --flush-only', { cwd: projectRoot }, (syncError, _syncStdout, _syncStderr) => {
+        exec('bd sync --flush-only', { cwd: projectManager.getProjectRoot() }, (syncError, _syncStdout, _syncStderr) => {
           if (syncError) {
             console.error(`sync error: ${syncError}`);
             // Don't fail the request if sync fails
@@ -137,7 +139,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        exec(`bd update ${id} --priority=${priority}`, { cwd: projectRoot }, (error, _stdout, stderr) => {
+        exec(`bd update ${id} --priority=${priority}`, { cwd: projectManager.getProjectRoot() }, (error, _stdout, stderr) => {
           if (error) {
             console.error(`exec error: ${error}`);
             return reject(new Error(stderr || error.message));
@@ -148,7 +150,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
 
       // Flush changes to JSONL file
       await new Promise<void>((resolve, _reject) => {
-        exec('bd sync --flush-only', { cwd: projectRoot }, (syncError, _syncStdout, _syncStderr) => {
+        exec('bd sync --flush-only', { cwd: projectManager.getProjectRoot() }, (syncError, _syncStdout, _syncStderr) => {
           if (syncError) {
             console.error(`sync error: ${syncError}`);
             // Don't fail the request if sync fails
@@ -188,7 +190,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
     // Helper function to execute a bd command
     const execBdCommand = (command: string): Promise<void> => {
       return new Promise((resolve, reject) => {
-        exec(command, { cwd: projectRoot }, (error, _stdout, stderr) => {
+        exec(command, { cwd: projectManager.getProjectRoot() }, (error, _stdout, stderr) => {
           if (error) {
             console.error(`exec error: ${error}`);
             reject(new Error(stderr || error.message));
@@ -214,7 +216,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
 
     try {
       // Read current issue data for label diffing
-      const allIssues = await readBeadsData(projectRoot);
+      const allIssues = await readBeadsData(projectManager.getProjectRoot());
       const currentIssue = allIssues.find(issue => issue.id === id);
 
       // Process each field that has a direct bd update flag
@@ -401,7 +403,7 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
 
       // Flush changes to JSONL file
       await new Promise<void>((resolve, _reject) => {
-        exec('bd sync --flush-only', { cwd: projectRoot }, (syncError, _syncStdout, _syncStderr) => {
+        exec('bd sync --flush-only', { cwd: projectManager.getProjectRoot() }, (syncError, _syncStdout, _syncStderr) => {
           if (syncError) {
             console.error(`sync error: ${syncError}`);
             // Don't fail the request if sync fails
@@ -422,6 +424,62 @@ export function createApiRouter(projectRoot: string, emitRefresh: () => void) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  /**
+   * GET /api/registry
+   * Returns all beads projects from ~/.beads/registry.json
+   */
+  router.get('/registry', async (_req: Request, res: Response) => {
+    try {
+      const projects = await getBeadsProjects();
+      res.json(projects);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to read registry' });
+    }
+  });
+
+  /**
+   * GET /api/project/current
+   * Returns the current active project path
+   */
+  router.get('/project/current', (_req: Request, res: Response) => {
+    try {
+      const currentPath = projectManager.getProjectRoot();
+      res.json({ path: currentPath });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to get current project' });
+    }
+  });
+
+  /**
+   * POST /api/project/switch
+   * Switches to a different beads project
+   */
+  router.post('/project/switch', async (req: Request, res: Response) => {
+    const { path: newPath } = req.body as { path: string };
+
+    if (!newPath) {
+      return res.status(400).json({ error: 'Project path is required' });
+    }
+
+    // Validate the project exists and has .beads directory
+    if (!isValidBeadsProject(newPath)) {
+      return res.status(400).json({ error: 'Invalid beads project path' });
+    }
+
+    try {
+      projectManager.setProjectRoot(newPath);
+      res.json({ success: true, path: newPath });
+
+      // Emit refresh to trigger data reload
+      emitRefresh();
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to switch project' });
     }
   });
 

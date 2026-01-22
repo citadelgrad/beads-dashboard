@@ -7,6 +7,7 @@ import minimist from 'minimist';
 import { fileURLToPath } from 'url';
 import { createApiRouter } from './routes/api.js';
 import { beadsDirectoryExists } from './utils/beadsReader.js';
+import { ProjectManager } from './utils/projectManager.js';
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -14,10 +15,13 @@ const __dirname = path.dirname(__filename);
 
 // Parse command line arguments and environment variables
 const args = minimist(process.argv.slice(2));
-const projectRoot = args._[0] || process.env.BEADS_PROJECT || process.cwd();
+const initialProjectRoot = args._[0] || process.env.BEADS_PROJECT || process.cwd();
 // In dev mode, backend runs on BEADS_PORT + 1 (Vite serves frontend on BEADS_PORT)
 const basePort = Number(process.env.BEADS_PORT) || 3199;
 const PORT = args.port || (process.env.NODE_ENV === 'production' ? basePort : basePort + 1);
+
+// Create project manager for dynamic project switching
+const projectManager = new ProjectManager(initialProjectRoot);
 
 // Create Express app and HTTP server
 const app = express();
@@ -39,7 +43,7 @@ if (isProduction) {
 }
 
 // API routes
-const apiRouter = createApiRouter(projectRoot, () => {
+const apiRouter = createApiRouter(projectManager, () => {
   io.emit('refresh');
 });
 app.use('/api', apiRouter);
@@ -53,12 +57,12 @@ if (isProduction) {
 
 console.log(`Starting Beads Dashboard Server...`);
 console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
-console.log(`Watching directory: ${projectRoot}`);
+console.log(`Watching directory: ${projectManager.getProjectRoot()}`);
 
 // Watch for changes in .beads directory
-const beadsDir = path.join(projectRoot, '.beads');
+const beadsDir = path.join(projectManager.getProjectRoot(), '.beads');
 
-if (beadsDirectoryExists(projectRoot)) {
+if (beadsDirectoryExists(projectManager.getProjectRoot())) {
   const watcher = chokidar.watch(beadsDir, {
     ignored: /(^|[\/\\])\../, // ignore dotfiles
     persistent: true,
@@ -72,7 +76,7 @@ if (beadsDirectoryExists(projectRoot)) {
   console.log(`No .beads directory found at ${beadsDir}. Waiting for it to be created...`);
 
   // Watch parent directory for .beads creation
-  const watcher = chokidar.watch(projectRoot, {
+  const watcher = chokidar.watch(projectManager.getProjectRoot(), {
     depth: 0,
     persistent: true,
     ignoreInitial: true,

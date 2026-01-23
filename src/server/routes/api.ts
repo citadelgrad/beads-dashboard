@@ -389,12 +389,17 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
       }
 
       // Defer date: bd update <id> --defer=...
+      // Also auto-set status to "deferred" when setting a defer date
       if (updates.defer !== undefined) {
         try {
           if (updates.defer === '' || updates.defer === null) {
             await execBdCommand(`bd update ${id} --defer=`);
           } else {
             await execBdCommand(`bd update ${id} --defer="${updates.defer}"`);
+            // Auto-set status to deferred if not explicitly being set to something else
+            if (updates.status === undefined) {
+              await execBdCommand(`bd update ${id} --status=deferred`);
+            }
           }
         } catch (error) {
           errors.push(`defer: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -448,25 +448,40 @@ function IssueEditorModal({ issue, allIssues = [], onClose, onSave }: IssueEdito
         {/* Footer */}
         <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-lg flex items-center justify-between">
           <div>
-            {error && <p className="text-red-600 text-sm">{error}</p>}
+            {error && (
+              <div className="flex items-center gap-2 text-red-600 text-sm">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {error}
+              </div>
+            )}
             {isDirty && !error && (
-              <p className="text-amber-600 text-sm">You have unsaved changes</p>
+              <div className="flex items-center gap-2 text-amber-600 text-sm font-medium">
+                <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                Unsaved changes
+              </div>
             )}
           </div>
           <div className="flex gap-3">
             <button
               onClick={handleClose}
-              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98] transition-all duration-150"
               disabled={saving}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 shadow-sm hover:shadow-md"
               disabled={saving || !isDirty}
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </span>
+              ) : 'Save Changes'}
             </button>
           </div>
         </div>

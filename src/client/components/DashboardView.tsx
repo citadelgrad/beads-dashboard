@@ -88,36 +88,36 @@ function DashboardView({ metrics, granularity, onGranularityChange }: DashboardV
 
       {/* Summary row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="card border-l-4 border-l-orange-500">
-          <div className="text-3xl font-black text-slate-800">
+        <div className="card border-l-4 border-l-orange-500 group cursor-default">
+          <div className="text-3xl font-black text-slate-800 transition-transform group-hover:scale-105 origin-left">
             {metrics.avgAge}{' '}
             <span className="text-sm font-normal text-slate-400">{metrics.displayUnit}</span>
           </div>
-          <div className="text-sm font-bold text-slate-400 uppercase">
+          <div className="text-sm font-bold text-slate-400 uppercase tracking-wide">
             Avg Work Age
           </div>
         </div>
-        <div className="card border-l-4 border-l-blue-500">
-          <div className="text-3xl font-black text-slate-800">
+        <div className="card border-l-4 border-l-blue-500 group cursor-default">
+          <div className="text-3xl font-black text-slate-800 transition-transform group-hover:scale-105 origin-left">
             {metrics.openCount}
           </div>
-          <div className="text-sm font-bold text-slate-400 uppercase">
+          <div className="text-sm font-bold text-slate-400 uppercase tracking-wide">
             Active WIP
           </div>
         </div>
-        <div className="card border-l-4 border-l-red-500">
-          <div className="text-3xl font-black text-slate-800">
+        <div className="card border-l-4 border-l-red-500 group cursor-default">
+          <div className="text-3xl font-black text-slate-800 transition-transform group-hover:scale-105 origin-left">
             {metrics.ageChartData[3].count}
           </div>
-          <div className="text-sm font-bold text-slate-400 uppercase">
+          <div className="text-sm font-bold text-slate-400 uppercase tracking-wide">
             Stale ({metrics.ageChartData[3].range})
           </div>
         </div>
-        <div className="card border-l-4 border-l-emerald-500">
-          <div className="text-3xl font-black text-slate-800">
+        <div className="card border-l-4 border-l-emerald-500 group cursor-default">
+          <div className="text-3xl font-black text-slate-800 transition-transform group-hover:scale-105 origin-left">
             {metrics.flowChartData.length}
           </div>
-          <div className="text-sm font-bold text-slate-400 uppercase">
+          <div className="text-sm font-bold text-slate-400 uppercase tracking-wide">
             {metrics.displayUnit === 'hours' ? 'Periods' : 'Days'} Tracked
           </div>
         </div>
@@ -267,7 +267,7 @@ function DashboardView({ metrics, granularity, onGranularityChange }: DashboardV
               <YAxis fontSize={12} />
               <Tooltip cursor={{ fill: '#f8fafc' }} />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {metrics.ageChartData.map((e, i) => (
+                {metrics.ageChartData.map((_, i) => (
                   <Cell
                     key={i}
                     fill={['#10b981', '#3b82f6', '#f59e0b', '#ef4444'][i]}

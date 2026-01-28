@@ -83,7 +83,7 @@ export default function ProjectSwitcher({ currentProjectName }: ProjectSwitcherP
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-80 bg-white border border-slate-200 rounded-md shadow-lg z-50">
+        <div className="absolute top-full left-0 mt-1 w-80 bg-white border border-slate-200 rounded-lg shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
           <div className="p-2 border-b border-slate-100">
             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-2 py-1">
               Beads Projects
@@ -101,8 +101,10 @@ export default function ProjectSwitcher({ currentProjectName }: ProjectSwitcherP
                   key={project.path}
                   onClick={() => handleProjectSwitch(project.path)}
                   disabled={loading}
-                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors ${
-                    project.name === currentProjectName ? 'bg-blue-50' : ''
+                  className={`w-full text-left px-3 py-2.5 transition-all duration-150 ${
+                    project.name === currentProjectName
+                      ? 'bg-blue-50 border-l-2 border-l-blue-500'
+                      : 'hover:bg-slate-50 border-l-2 border-l-transparent'
                   } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex items-center justify-between">

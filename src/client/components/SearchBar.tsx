@@ -183,7 +183,7 @@ function SearchBar({ issues, onSelectIssue, placeholder = "Search issues...", on
           id="search-results"
           role="listbox"
           className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg
-                        shadow-lg max-h-[400px] overflow-y-auto"
+                        shadow-xl max-h-[400px] overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
         >
           {filteredIssues.map((issue, index) => (
             <SearchResultItem
@@ -246,7 +246,7 @@ function SearchResultItem({ issue, isHighlighted, onClick, resultId }: SearchRes
       id={resultId}
       role="option"
       aria-selected={isHighlighted}
-      className={`px-4 py-3 cursor-pointer border-b border-slate-100 last:border-b-0
+      className={`px-4 py-3 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors duration-100
                   ${isHighlighted ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
       onClick={onClick}
     >

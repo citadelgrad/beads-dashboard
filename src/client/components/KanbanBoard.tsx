@@ -162,8 +162,8 @@ function KanbanCard({ issue, onDragStart, onTouchStart, onCardClick, isDragging 
       onDragStart={(e) => onDragStart(e, issue)}
       onTouchStart={(e) => onTouchStart(e, issue)}
       onClick={() => onCardClick(issue)}
-      className={`bg-white rounded-lg shadow-sm border border-slate-200 border-l-4 ${priorityBorderColor} p-3 cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md ${
-        isDragging ? 'opacity-50 scale-95' : ''
+      className={`bg-white rounded-lg shadow-sm border border-slate-200 border-l-4 ${priorityBorderColor} p-3 cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
+        isDragging ? 'opacity-50 scale-95 rotate-2' : ''
       }`}
       data-testid={`kanban-card-${issue.id}`}
     >
@@ -237,8 +237,10 @@ function KanbanColumn({
 }: KanbanColumnProps) {
   return (
     <div
-      className={`flex flex-col w-[calc(25%-12px)] min-w-[200px] flex-shrink-0 rounded-lg ${bgColor} border ${
-        isDropTarget ? 'border-blue-400 border-2' : 'border-slate-200'
+      className={`flex flex-col w-[calc(25%-12px)] min-w-[200px] flex-shrink-0 rounded-lg ${bgColor} border transition-all duration-200 ${
+        isDropTarget
+          ? 'border-blue-400 border-2 bg-blue-50/50 ring-4 ring-blue-100'
+          : 'border-slate-200'
       }`}
       onDragOver={onDragOver}
       onDrop={() => onDrop(category)}

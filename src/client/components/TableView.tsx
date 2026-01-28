@@ -792,12 +792,21 @@ function TableView({ issues }: TableViewProps) {
           /* Epics View */
           <div className="divide-y divide-slate-100">
               {epicsWithChildren.length === 0 ? (
-              <div className="px-6 py-12 text-center">
-                <Boxes className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 mb-2">No epics found</p>
-                <p className="text-sm text-slate-400">
-                  Create an epic using: <code className="bg-slate-100 px-2 py-0.5 rounded">bd create --type=epic --title="..."</code>
-                </p>
+              <div className="px-6 py-16 text-center">
+                <div className="inline-flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center">
+                    <Boxes className="w-8 h-8 text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-700 font-medium mb-1">No epics found</p>
+                    <p className="text-slate-500 text-sm max-w-md">
+                      Epics help organize related issues together. Create one to group your work.
+                    </p>
+                  </div>
+                  <code className="mt-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-mono">
+                    bd create --type=epic --title="..."
+                  </code>
+                </div>
               </div>
             ) : (
               epicsWithChildren.map(({ epic, children, progress }) => {
@@ -809,7 +818,7 @@ function TableView({ issues }: TableViewProps) {
                   <div key={epic.id} className="bg-white">
                     {/* Epic Row - aligned with shared header */}
                     <div
-                      className="flex items-center gap-4 px-6 py-3 hover:bg-slate-50 cursor-pointer"
+                      className="flex items-center gap-4 px-6 py-3 hover:bg-indigo-50/50 cursor-pointer transition-colors duration-150"
                       onClick={() => toggleEpicExpansion(epic.id)}
                     >
                       {/* Expand/Collapse */}
@@ -927,7 +936,7 @@ function TableView({ issues }: TableViewProps) {
                             return (
                               <div
                                 key={child.id}
-                                className="flex items-center gap-4 px-6 py-2 pl-16 hover:bg-slate-100/50 group"
+                                className="flex items-center gap-4 px-6 py-2 pl-16 hover:bg-blue-50/50 group transition-colors duration-150"
                               >
                                 {/* Tree connector */}
                                 <span className="text-slate-300 font-mono text-sm w-4">
@@ -1007,9 +1016,26 @@ function TableView({ issues }: TableViewProps) {
           /* Flat List View - flexbox rows matching epics view */
           <div className="divide-y divide-slate-100">
             {filteredIssues.length === 0 ? (
-              <div className="px-6 py-12 text-center">
-                <ListCheck className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">No issues found matching "{filterText}"</p>
+              <div className="px-6 py-16 text-center">
+                <div className="inline-flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                    <ListCheck className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <div>
+                    <p className="text-slate-700 font-medium mb-1">No matching issues</p>
+                    <p className="text-slate-500 text-sm">
+                      {filterText ? `Try adjusting your search for "${filterText}"` : 'No issues match the current filters'}
+                    </p>
+                  </div>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearAllFilters}
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               filteredIssues.map((issue) => {
@@ -1024,7 +1050,7 @@ function TableView({ issues }: TableViewProps) {
                 const typeInfo = getTypeInfo(issue.issue_type);
 
                 return (
-                  <div key={issue.id} className="flex items-center gap-4 px-6 py-3 hover:bg-slate-50 group">
+                  <div key={issue.id} className="flex items-center gap-4 px-6 py-3 hover:bg-blue-50/50 group transition-colors duration-150">
                     {/* ID */}
                     <div className="w-20 flex items-center gap-2">
                       {typeInfo.icon}
@@ -1086,7 +1112,7 @@ function TableView({ issues }: TableViewProps) {
                         <button
                           onClick={() => handleStatusUpdate(issue.id, 'in_progress')}
                           disabled={updatingStatus === issue.id}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all duration-150 disabled:opacity-50 group-hover:text-blue-500"
                           title="Start Progress"
                         >
                           <Play className="w-4 h-4" />
@@ -1096,7 +1122,7 @@ function TableView({ issues }: TableViewProps) {
                         <button
                           onClick={() => handleStatusUpdate(issue.id, 'closed')}
                           disabled={updatingStatus === issue.id}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                          className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-all duration-150 disabled:opacity-50 group-hover:text-green-500"
                           title="Close Issue"
                         >
                           <Check className="w-4 h-4" />

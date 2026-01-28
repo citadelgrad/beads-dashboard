@@ -179,18 +179,23 @@ function IssueCreatorModal({ onClose, onCreate }: IssueCreatorModalProps) {
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98] transition-all duration-150"
               disabled={saving}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 shadow-sm hover:shadow-md"
               disabled={saving || !formState.title.trim()}
               title="Cmd+Enter to save"
             >
-              {saving ? 'Creating...' : 'Create Issue'}
+              {saving ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Creating...
+                </span>
+              ) : 'Create Issue'}
             </button>
           </div>
         </div>

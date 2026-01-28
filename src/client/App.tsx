@@ -180,7 +180,12 @@ function App() {
               Live View • {activeIssuesCount} issues loaded
             </p>
           </div>
-          <div className="text-xs text-slate-400">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
+            loading
+              ? 'bg-amber-50 text-amber-600 border border-amber-200'
+              : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${loading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
             {loading ? 'Connecting...' : 'Connected'}
           </div>
         </div>
@@ -195,33 +200,39 @@ function App() {
           <NewIssueButton onClick={() => setCreateModalOpen(true)} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex space-x-4 border-b border-slate-200">
+        {/* Tabs - Premium segmented control style */}
+        <div className="inline-flex p-1 bg-slate-100 rounded-lg" role="tablist">
           <button
-            className={`pb-2 px-1 text-sm font-medium ${
+            role="tab"
+            aria-selected={activeTab === 'table'}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
               activeTab === 'table'
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
             onClick={() => setActiveTab('table')}
           >
             Issues
           </button>
           <button
-            className={`pb-2 px-1 text-sm font-medium ${
+            role="tab"
+            aria-selected={activeTab === 'board'}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
               activeTab === 'board'
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
             onClick={() => setActiveTab('board')}
           >
             Board
           </button>
           <button
-            className={`pb-2 px-1 text-sm font-medium ${
+            role="tab"
+            aria-selected={activeTab === 'dashboard'}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
               activeTab === 'dashboard'
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
             onClick={() => setActiveTab('dashboard')}
           >
@@ -231,12 +242,50 @@ function App() {
       </header>
 
       {loading && !parsedIssues.length ? (
-        <div className="card py-20 text-center text-slate-400">Loading data...</div>
+        <div className="card py-20 text-center">
+          <div className="inline-flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-blue-500 animate-spin" />
+            </div>
+            <p className="text-slate-500 font-medium">Loading issues...</p>
+          </div>
+        </div>
       ) : error ? (
-        <div className="card py-20 text-center text-red-500">{error}</div>
+        <div className="card py-16 text-center border-red-200 bg-red-50/50">
+          <div className="inline-flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <p className="text-red-600 font-medium">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-sm text-red-500 hover:text-red-700 underline underline-offset-2"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
       ) : !metrics ? (
-        <div className="card border-dashed border-2 py-20 text-center text-slate-400">
-          No issues found in .beads directory.
+        <div className="card border-dashed border-2 py-16 text-center">
+          <div className="inline-flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+              <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-slate-700 font-medium mb-1">No issues found</p>
+              <p className="text-slate-500 text-sm">Get started by creating your first issue</p>
+            </div>
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              Create First Issue
+            </button>
+          </div>
         </div>
       ) : activeTab === 'table' ? (
         <TableView issues={parsedIssues} />

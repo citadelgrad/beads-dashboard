@@ -22,7 +22,7 @@ function App() {
     }
     return 'table';
   });
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [_socket, setSocket] = useState<Socket | null>(null);
   const [granularity, setGranularity] = useState<TimeGranularity>(() => {
     const saved = localStorage.getItem('beads-granularity');
     return (saved as TimeGranularity) || 'daily';

@@ -321,63 +321,6 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
     setDraggingIssue(issue);
   }, []);
 
-  // Handle touch move
-  useEffect(() => {
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!touchRef.current) return;
-      e.preventDefault();
-
-      const touch = e.touches[0];
-
-      // Create/update ghost element
-      if (!ghostRef.current) {
-        ghostRef.current = document.createElement('div');
-        ghostRef.current.className = 'fixed z-50 bg-white shadow-lg rounded-lg p-2 pointer-events-none opacity-80';
-        ghostRef.current.textContent = touchRef.current.issue.title || 'Untitled';
-        document.body.appendChild(ghostRef.current);
-      }
-
-      ghostRef.current.style.left = `${touch.clientX - 50}px`;
-      ghostRef.current.style.top = `${touch.clientY - 20}px`;
-
-      // Find drop target
-      const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-      for (const el of elements) {
-        const testId = el.getAttribute('data-testid');
-        if (testId?.startsWith('kanban-column-')) {
-          const category = testId.replace('kanban-column-', '') as KanbanCategory;
-          setDropTarget(category);
-          return;
-        }
-      }
-      setDropTarget(null);
-    };
-
-    const handleTouchEnd = () => {
-      if (touchRef.current && dropTarget) {
-        handleDrop(dropTarget);
-      }
-
-      // Cleanup ghost
-      if (ghostRef.current) {
-        document.body.removeChild(ghostRef.current);
-        ghostRef.current = null;
-      }
-
-      touchRef.current = null;
-      setDraggingIssue(null);
-      setDropTarget(null);
-    };
-
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleTouchEnd);
-
-    return () => {
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [dropTarget]);
-
   // Handle drag over
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -449,6 +392,63 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
       setUpdating(null);
     }
   }, [draggingIssue, optimisticIssues]);
+
+  // Handle touch move (must be after handleDrop is defined)
+  useEffect(() => {
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!touchRef.current) return;
+      e.preventDefault();
+
+      const touch = e.touches[0];
+
+      // Create/update ghost element
+      if (!ghostRef.current) {
+        ghostRef.current = document.createElement('div');
+        ghostRef.current.className = 'fixed z-50 bg-white shadow-lg rounded-lg p-2 pointer-events-none opacity-80';
+        ghostRef.current.textContent = touchRef.current.issue.title || 'Untitled';
+        document.body.appendChild(ghostRef.current);
+      }
+
+      ghostRef.current.style.left = `${touch.clientX - 50}px`;
+      ghostRef.current.style.top = `${touch.clientY - 20}px`;
+
+      // Find drop target
+      const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
+      for (const el of elements) {
+        const testId = el.getAttribute('data-testid');
+        if (testId?.startsWith('kanban-column-')) {
+          const category = testId.replace('kanban-column-', '') as KanbanCategory;
+          setDropTarget(category);
+          return;
+        }
+      }
+      setDropTarget(null);
+    };
+
+    const handleTouchEnd = () => {
+      if (touchRef.current && dropTarget) {
+        handleDrop(dropTarget);
+      }
+
+      // Cleanup ghost
+      if (ghostRef.current) {
+        document.body.removeChild(ghostRef.current);
+        ghostRef.current = null;
+      }
+
+      touchRef.current = null;
+      setDraggingIssue(null);
+      setDropTarget(null);
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [dropTarget, handleDrop]);
 
   // Handle drag end
   const handleDragEnd = useCallback(() => {

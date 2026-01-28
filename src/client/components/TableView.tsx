@@ -47,10 +47,10 @@ function TableView({ issues }: TableViewProps) {
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
 
-  // Epics view: show closed toggle (default: hide closed)
-  const [showClosedEpics, setShowClosedEpics] = useState<boolean>(() => {
-    const saved = localStorage.getItem('beads-show-closed-epics');
-    return saved === 'true';
+  // Epics view: status filter (empty = default "all except closed", non-empty = show only selected)
+  const [epicStatusFilter, setEpicStatusFilter] = useState<IssueStatus[]>(() => {
+    const saved = localStorage.getItem('beads-epic-status-filter');
+    return saved ? JSON.parse(saved) : [];
   });
 
   // Sorting state (default: priority ascending = highest priority first)
@@ -109,8 +109,8 @@ function TableView({ issues }: TableViewProps) {
   }, [expandedEpics]);
 
   useEffect(() => {
-    localStorage.setItem('beads-show-closed-epics', String(showClosedEpics));
-  }, [showClosedEpics]);
+    localStorage.setItem('beads-epic-status-filter', JSON.stringify(epicStatusFilter));
+  }, [epicStatusFilter]);
 
   useEffect(() => {
     localStorage.setItem('beads-sort-column', sortColumn);
@@ -284,10 +284,6 @@ function TableView({ issues }: TableViewProps) {
     };
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
-
   // Filter management functions
   const toggleFilterValue = (filterType: string, value: string | number) => {
     if (filterType === 'status') {
@@ -315,13 +311,19 @@ function TableView({ issues }: TableViewProps) {
   };
 
   const clearAllFilters = () => {
-    setStatusFilter([]);
-    setTypeFilter([]);
-    setPriorityFilter([]);
+    if (showEpicsView) {
+      setEpicStatusFilter([]);
+      setPriorityFilter([]);
+    } else {
+      setStatusFilter([]);
+      setTypeFilter([]);
+      setPriorityFilter([]);
+    }
   };
 
-  const hasActiveFilters =
-    statusFilter.length > 0 || typeFilter.length > 0 || priorityFilter.length > 0;
+  const hasActiveFilters = showEpicsView
+    ? epicStatusFilter.length > 0 || priorityFilter.length > 0
+    : statusFilter.length > 0 || typeFilter.length > 0 || priorityFilter.length > 0;
 
   // Toggle epic expansion
   const toggleEpicExpansion = (epicId: string) => {
@@ -376,8 +378,14 @@ function TableView({ issues }: TableViewProps) {
       return { epic, children, progress };
     })
     .filter((e) => {
-      // Filter closed epics unless showClosedEpics is true
-      if (!showClosedEpics && e.epic.status === 'closed') return false;
+      // Apply status filter (empty = default "all except closed")
+      if (epicStatusFilter.length > 0) {
+        // Non-empty filter: show only selected statuses
+        if (!epicStatusFilter.includes(e.epic.status as IssueStatus)) return false;
+      } else {
+        // Empty filter: default behavior excludes closed
+        if (e.epic.status === 'closed') return false;
+      }
 
       // Apply priority filter
       if (priorityFilter.length > 0 && !priorityFilter.includes(e.epic.priority)) return false;
@@ -611,15 +619,19 @@ function TableView({ issues }: TableViewProps) {
           {/* Active Filters - Right */}
           {hasActiveFilters && (
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Status filter chips */}
-              {statusFilter.map((status) => (
+              {/* Status filter chips (show epicStatusFilter in epics view) */}
+              {(showEpicsView ? epicStatusFilter : statusFilter).map((status) => (
                 <span
                   key={`status-${status}`}
                   className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium"
                 >
                   {status}
                   <button
-                    onClick={() => setStatusFilter(statusFilter.filter((s) => s !== status))}
+                    onClick={() =>
+                      showEpicsView
+                        ? setEpicStatusFilter(epicStatusFilter.filter((s) => s !== status))
+                        : setStatusFilter(statusFilter.filter((s) => s !== status))
+                    }
                     className="hover:text-blue-900"
                     aria-label={`Remove ${status} filter`}
                   >
@@ -627,22 +639,23 @@ function TableView({ issues }: TableViewProps) {
                   </button>
                 </span>
               ))}
-              {/* Type filter chips */}
-              {typeFilter.map((type) => (
-                <span
-                  key={`type-${type}`}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium"
-                >
-                  {type}
-                  <button
-                    onClick={() => setTypeFilter(typeFilter.filter((t) => t !== type))}
-                    className="hover:text-purple-900"
-                    aria-label={`Remove ${type} filter`}
+              {/* Type filter chips (only in list view) */}
+              {!showEpicsView &&
+                typeFilter.map((type) => (
+                  <span
+                    key={`type-${type}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium"
                   >
-                    ×
-                  </button>
-                </span>
-              ))}
+                    {type}
+                    <button
+                      onClick={() => setTypeFilter(typeFilter.filter((t) => t !== type))}
+                      className="hover:text-purple-900"
+                      aria-label={`Remove ${type} filter`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
               {/* Priority filter chips */}
               {priorityFilter.map((priority) => (
                 <span
@@ -745,17 +758,20 @@ function TableView({ issues }: TableViewProps) {
               <SortIndicator column="status" />
             </button>
             {showEpicsView ? (
-              <button
-                onClick={() => setShowClosedEpics(!showClosedEpics)}
-                className={`ml-2 px-2 py-0.5 rounded text-xs font-medium transition-colors ${
-                  showClosedEpics
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
-                }`}
-                title={showClosedEpics ? 'Showing all epics' : 'Showing open epics only'}
-              >
-                {showClosedEpics ? 'All' : 'Open'}
-              </button>
+              <FilterDropdown
+                column="epicStatus"
+                values={uniqueStatuses}
+                activeFilters={epicStatusFilter}
+                onToggle={(value) => {
+                  const status = value as IssueStatus;
+                  setEpicStatusFilter((prev) =>
+                    prev.includes(status)
+                      ? prev.filter((s) => s !== status)
+                      : [...prev, status]
+                  );
+                }}
+                onClear={() => setEpicStatusFilter([])}
+              />
             ) : (
               <FilterDropdown
                 column="status"

@@ -176,7 +176,7 @@ export interface UpdateIssueRequest {
   estimate?: number;
   due?: string; // ISO 8601
   defer?: string; // ISO 8601
-  parent?: string;
+  parent_id?: string;
   design?: string;
   acceptance_criteria?: string;
   notes?: string;

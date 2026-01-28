@@ -1,7 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import chokidar from 'chokidar';
+import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
 import minimist from 'minimist';
 import { fileURLToPath } from 'url';
@@ -59,36 +59,62 @@ console.log(`Starting Beads Dashboard Server...`);
 console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
 console.log(`Watching directory: ${projectManager.getProjectRoot()}`);
 
-// Watch for changes in .beads directory
-const beadsDir = path.join(projectManager.getProjectRoot(), '.beads');
+// Current file watcher (tracked for cleanup on project switch)
+let currentWatcher: FSWatcher | null = null;
 
-if (beadsDirectoryExists(projectManager.getProjectRoot())) {
-  const watcher = chokidar.watch(beadsDir, {
-    ignored: /(^|[\/\\])\../, // ignore dotfiles
-    persistent: true,
-  });
+/**
+ * Set up file watcher for a project's .beads directory
+ * Closes any existing watcher first
+ */
+function setupWatcher(projectRoot: string): void {
+  // Close existing watcher if any
+  if (currentWatcher) {
+    currentWatcher.close();
+    currentWatcher = null;
+  }
 
-  watcher.on('all', (event, filePath) => {
-    console.log(`File ${event}: ${filePath}`);
-    io.emit('refresh');
-  });
-} else {
-  console.log(`No .beads directory found at ${beadsDir}. Waiting for it to be created...`);
+  const beadsDir = path.join(projectRoot, '.beads');
 
-  // Watch parent directory for .beads creation
-  const watcher = chokidar.watch(projectManager.getProjectRoot(), {
-    depth: 0,
-    persistent: true,
-    ignoreInitial: true,
-  });
+  if (beadsDirectoryExists(projectRoot)) {
+    console.log(`Setting up watcher for: ${beadsDir}`);
+    currentWatcher = chokidar.watch(beadsDir, {
+      ignored: /(^|[\/\\])\../, // ignore dotfiles
+      persistent: true,
+    });
 
-  watcher.on('addDir', (dirPath) => {
-    if (path.basename(dirPath) === '.beads') {
-      console.log('.beads directory created! Emitting refresh...');
+    currentWatcher.on('all', (event, filePath) => {
+      console.log(`File ${event}: ${filePath}`);
       io.emit('refresh');
-    }
-  });
+    });
+  } else {
+    console.log(`No .beads directory found at ${beadsDir}. Waiting for it to be created...`);
+
+    // Watch parent directory for .beads creation
+    currentWatcher = chokidar.watch(projectRoot, {
+      depth: 0,
+      persistent: true,
+      ignoreInitial: true,
+    });
+
+    currentWatcher.on('addDir', (dirPath) => {
+      if (path.basename(dirPath) === '.beads') {
+        console.log('.beads directory created! Setting up proper watcher...');
+        // Re-setup watcher now that .beads exists
+        setupWatcher(projectRoot);
+        io.emit('refresh');
+      }
+    });
+  }
 }
+
+// Set up initial watcher
+setupWatcher(projectManager.getProjectRoot());
+
+// Re-setup watcher when project changes
+projectManager.onProjectChange((newPath) => {
+  console.log(`Project switched to: ${newPath}`);
+  setupWatcher(newPath);
+});
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {

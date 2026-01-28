@@ -1,7 +1,6 @@
 import { useState, useCallback, type KeyboardEvent } from 'react';
 import { X, Plus } from 'lucide-react';
 import type { Issue, IssueStatus, Priority } from '@shared/types';
-import { PRIORITY_LABELS } from '@shared/types';
 import CollapsibleSection from './CollapsibleSection';
 
 // All 14 issue types supported by Beads

@@ -21,12 +21,13 @@ interface DateBadgeProps {
  * - Purple: Deferred to future date
  */
 function DateBadge({ due, defer, compact = true }: DateBadgeProps) {
-  // Memoize today calculation to avoid unnecessary recalculations
+  // Calculate today's date, updating when due/defer props change
+  // Using a new Date each render ensures correctness if dashboard stays open overnight
   const today = useMemo(() => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     return date;
-  }, []);
+  }, [due, defer]);
 
   // Calculate due date badge (memoized)
   const dueBadge = useMemo(() => {

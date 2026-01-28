@@ -317,15 +317,15 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
       }
 
       // Parent: bd update <id> --parent=...
-      if (updates.parent !== undefined) {
+      if (updates.parent_id !== undefined) {
         try {
-          if (updates.parent === '' || updates.parent === null) {
+          if (updates.parent_id === '' || updates.parent_id === null) {
             await execBdCommand(`bd update ${id} --parent=`);
           } else {
-            await execBdCommand(`bd update ${id} --parent=${updates.parent}`);
+            await execBdCommand(`bd update ${id} --parent=${updates.parent_id}`);
           }
         } catch (error) {
-          errors.push(`parent: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          errors.push(`parent_id: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 

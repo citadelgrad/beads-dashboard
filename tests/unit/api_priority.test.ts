@@ -42,7 +42,13 @@ describe('API Priority Routes', () => {
     app.use(express.json());
 
     emitRefreshSpy = vi.fn();
-    const apiRouter = createApiRouter(tempDir, emitRefreshSpy);
+    // Create a mock ProjectManager
+    const mockProjectManager = {
+      getProjectRoot: () => tempDir,
+      setProjectRoot: vi.fn(),
+      onProjectChange: vi.fn(),
+    };
+    const apiRouter = createApiRouter(mockProjectManager as any, emitRefreshSpy);
     app.use('/api', apiRouter);
   });
 

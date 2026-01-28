@@ -9,8 +9,15 @@ interface DatePickerProps {
 }
 
 function DatePicker({ value, onChange, placeholder = 'Select date' }: DatePickerProps) {
-  // Parse ISO 8601 string to Date object
-  const selectedDate = value ? new Date(value) : null;
+  // Parse ISO 8601 string to Date object, with validation
+  let selectedDate: Date | null = null;
+  if (value) {
+    const parsed = new Date(value);
+    // Check if date is valid (not NaN)
+    if (!isNaN(parsed.getTime())) {
+      selectedDate = parsed;
+    }
+  }
 
   // Handle date change from the picker
   const handleChange = (date: Date | null) => {

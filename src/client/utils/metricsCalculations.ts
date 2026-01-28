@@ -12,9 +12,15 @@ import { GRANULARITY_OPTIONS } from '@shared/types';
 
 /**
  * Get granularity configuration
+ * Returns 'daily' config as fallback if invalid granularity is passed
  */
 export function getGranularityConfig(granularity: TimeGranularity): GranularityConfig {
-  return GRANULARITY_OPTIONS.find(opt => opt.value === granularity)!;
+  const config = GRANULARITY_OPTIONS.find(opt => opt.value === granularity);
+  if (!config) {
+    // Fallback to daily if invalid granularity
+    return GRANULARITY_OPTIONS.find(opt => opt.value === 'daily') ?? GRANULARITY_OPTIONS[0];
+  }
+  return config;
 }
 
 /**

@@ -2,10 +2,58 @@ import express, { Request, Response } from 'express';
 import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { readBeadsData } from '../utils/beadsReader.js';
 import { getBeadsProjects, isValidBeadsProject } from '../utils/registryReader.js';
 import type { ProjectManager } from '../utils/projectManager.js';
-import type { UpdateIssueDescriptionRequest, UpdateIssueStatusRequest, UpdateIssuePriorityRequest, UpdateIssueRequest } from '@shared/types';
+import type { UpdateIssueDescriptionRequest, UpdateIssueStatusRequest, UpdateIssuePriorityRequest, UpdateIssueRequest, IssueStatus, Priority } from '@shared/types';
+
+/**
+ * Validate that an issue ID is safe for shell commands.
+ * Issue IDs should only contain alphanumeric chars, hyphens, underscores, and periods.
+ * Example valid IDs: "beads-dashboard-abc123", "xqkm.23", "issue_1"
+ */
+function isValidIssueId(id: string): boolean {
+  // Only allow alphanumeric, hyphens, underscores, and periods
+  // Must be 1-100 characters
+  return /^[a-zA-Z0-9._-]{1,100}$/.test(id);
+}
+
+/**
+ * Validate status values against allowed list
+ */
+const VALID_STATUSES: IssueStatus[] = ['open', 'in_progress', 'blocked', 'closed', 'tombstone', 'deferred', 'pinned', 'hooked'];
+function isValidStatus(status: string): status is IssueStatus {
+  return VALID_STATUSES.includes(status as IssueStatus);
+}
+
+/**
+ * Validate priority values (0-4)
+ */
+function isValidPriority(priority: number): priority is Priority {
+  return Number.isInteger(priority) && priority >= 0 && priority <= 4;
+}
+
+/**
+ * Generate a unique temp file path using crypto random bytes
+ */
+function generateTempFilePath(prefix: string): string {
+  const uniqueId = crypto.randomBytes(8).toString('hex');
+  return path.join(process.cwd(), `${prefix}-${uniqueId}.txt`);
+}
+
+/**
+ * Escape a string for safe use in shell arguments (double-quoted context)
+ * This escapes: $, `, \, ", and !
+ */
+function escapeShellArg(arg: string): string {
+  return arg
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\$/g, '\\$')
+    .replace(/`/g, '\\`')
+    .replace(/!/g, '\\!');
+}
 
 export function createApiRouter(projectManager: ProjectManager, emitRefresh: () => void) {
   const router = express.Router();
@@ -32,12 +80,17 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
     const { id } = req.params;
     const { description } = req.body as UpdateIssueDescriptionRequest;
 
+    // Validate issue ID to prevent command injection
+    if (!isValidIssueId(id)) {
+      return res.status(400).json({ error: 'Invalid issue ID format' });
+    }
+
     if (!description && description !== '') {
       return res.status(400).json({ error: 'Description is required' });
     }
 
     // Write desc to temp file to avoid escaping issues
-    const tempFile = path.join(process.cwd(), `desc-${Date.now()}.txt`);
+    const tempFile = generateTempFilePath('desc');
 
     try {
       fs.writeFileSync(tempFile, description);
@@ -89,8 +142,18 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
     const { id } = req.params;
     const { status } = req.body as UpdateIssueStatusRequest;
 
+    // Validate issue ID to prevent command injection
+    if (!isValidIssueId(id)) {
+      return res.status(400).json({ error: 'Invalid issue ID format' });
+    }
+
     if (!status) {
       return res.status(400).json({ error: 'Status is required' });
+    }
+
+    // Validate status value
+    if (!isValidStatus(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
     }
 
     try {
@@ -133,8 +196,18 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
     const { id } = req.params;
     const { priority } = req.body as UpdateIssuePriorityRequest;
 
+    // Validate issue ID to prevent command injection
+    if (!isValidIssueId(id)) {
+      return res.status(400).json({ error: 'Invalid issue ID format' });
+    }
+
     if (priority === undefined || priority === null) {
       return res.status(400).json({ error: 'Priority is required' });
+    }
+
+    // Validate priority value
+    if (!isValidPriority(priority)) {
+      return res.status(400).json({ error: 'Invalid priority value (must be 0-4)' });
     }
 
     try {
@@ -178,11 +251,31 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
     const { id } = req.params;
     const updates = req.body as UpdateIssueRequest;
 
+    // Validate issue ID to prevent command injection
+    if (!isValidIssueId(id)) {
+      return res.status(400).json({ error: 'Invalid issue ID format' });
+    }
+
     console.log('[DEBUG] PATCH /api/issues/' + id, JSON.stringify(updates, null, 2));
 
     // Check if any fields were provided
     if (!updates || Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    // Validate status if provided
+    if (updates.status !== undefined && !isValidStatus(updates.status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    // Validate priority if provided
+    if (updates.priority !== undefined && !isValidPriority(updates.priority)) {
+      return res.status(400).json({ error: 'Invalid priority value (must be 0-4)' });
+    }
+
+    // Validate parent_id if provided (must be valid issue ID format or empty)
+    if (updates.parent_id !== undefined && updates.parent_id !== '' && updates.parent_id !== null && !isValidIssueId(updates.parent_id)) {
+      return res.status(400).json({ error: 'Invalid parent issue ID format' });
     }
 
     const errors: string[] = [];
@@ -203,7 +296,7 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
 
     // Helper function to write content to temp file and update via file flag
     const updateViaFile = async (flag: string, content: string): Promise<void> => {
-      const tempFile = path.join(process.cwd(), `${flag.replace(/-/g, '_')}-${Date.now()}.txt`);
+      const tempFile = generateTempFilePath(flag.replace(/-/g, '_'));
       try {
         fs.writeFileSync(tempFile, content);
         await execBdCommand(`bd update ${id} --${flag}="${tempFile}"`);
@@ -224,8 +317,8 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
       // Title: bd update <id> --title="..."
       if (updates.title !== undefined) {
         try {
-          // Escape double quotes in title
-          const escapedTitle = updates.title.replace(/"/g, '\\"');
+          // Escape shell-sensitive characters in title
+          const escapedTitle = escapeShellArg(updates.title);
           await execBdCommand(`bd update ${id} --title="${escapedTitle}"`);
         } catch (error) {
           errors.push(`title: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -262,7 +355,7 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
       // Assignee: bd update <id> --assignee="..."
       if (updates.assignee !== undefined) {
         try {
-          const escapedAssignee = updates.assignee.replace(/"/g, '\\"');
+          const escapedAssignee = escapeShellArg(updates.assignee);
           await execBdCommand(`bd update ${id} --assignee="${escapedAssignee}"`);
         } catch (error) {
           errors.push(`assignee: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -272,7 +365,7 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
       // Description: bd update <id> --body-file=<tempfile>
       if (updates.description !== undefined) {
         try {
-          const tempFile = path.join(process.cwd(), `desc-${Date.now()}.txt`);
+          const tempFile = generateTempFilePath('desc');
           fs.writeFileSync(tempFile, updates.description);
           try {
             await execBdCommand(`bd update ${id} --body-file "${tempFile}"`);
@@ -295,7 +388,7 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
         for (const label of newLabels) {
           if (!currentLabels.has(label)) {
             try {
-              const escapedLabel = label.replace(/"/g, '\\"');
+              const escapedLabel = escapeShellArg(label);
               await execBdCommand(`bd label ${id} add "${escapedLabel}"`);
             } catch (error) {
               errors.push(`label add '${label}': ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -307,7 +400,7 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
         for (const label of currentLabels) {
           if (!newLabels.has(label)) {
             try {
-              const escapedLabel = label.replace(/"/g, '\\"');
+              const escapedLabel = escapeShellArg(label);
               await execBdCommand(`bd label ${id} remove "${escapedLabel}"`);
             } catch (error) {
               errors.push(`label remove '${label}': ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -332,7 +425,7 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
       // External ref: bd update <id> --external-ref="..."
       if (updates.external_ref !== undefined) {
         try {
-          const escapedRef = updates.external_ref.replace(/"/g, '\\"');
+          const escapedRef = escapeShellArg(updates.external_ref);
           await execBdCommand(`bd update ${id} --external-ref="${escapedRef}"`);
         } catch (error) {
           errors.push(`external_ref: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -433,6 +526,14 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
   });
 
   /**
+   * Validate issue type against allowed values
+   */
+  const VALID_ISSUE_TYPES = ['task', 'bug', 'feature', 'epic', 'chore'];
+  function isValidIssueType(type: string): boolean {
+    return VALID_ISSUE_TYPES.includes(type);
+  }
+
+  /**
    * POST /api/issues
    * Creates a new issue via bd create command
    */
@@ -448,13 +549,22 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    try {
-      // Build the bd create command
-      const escapedTitle = title.replace(/"/g, '\\"');
-      const type = issue_type || 'task';
-      const prio = priority !== undefined ? priority : 2;
+    // Validate issue_type if provided
+    const type = issue_type || 'task';
+    if (!isValidIssueType(type)) {
+      return res.status(400).json({ error: 'Invalid issue type' });
+    }
 
-      let createCommand = `bd create --title="${escapedTitle}" --type=${type} --priority=${prio}`;
+    // Validate priority if provided
+    const prio = priority !== undefined ? priority : 2;
+    if (!isValidPriority(prio)) {
+      return res.status(400).json({ error: 'Invalid priority value (must be 0-4)' });
+    }
+
+    try {
+      // Build the bd create command with proper escaping
+      const escapedTitle = escapeShellArg(title);
+      const createCommand = `bd create --title="${escapedTitle}" --type=${type} --priority=${prio}`;
 
       // Execute bd create
       const createResult = await new Promise<string>((resolve, reject) => {
@@ -472,8 +582,8 @@ export function createApiRouter(projectManager: ProjectManager, emitRefresh: () 
       const issueId = idMatch ? idMatch[1] : null;
 
       // If description is provided, update it separately
-      if (description && description.trim().length > 0 && issueId) {
-        const tempFile = path.join(process.cwd(), `desc-${Date.now()}.txt`);
+      if (description && description.trim().length > 0 && issueId && isValidIssueId(issueId)) {
+        const tempFile = generateTempFilePath('desc');
         try {
           fs.writeFileSync(tempFile, description);
           await new Promise<void>((resolve, reject) => {

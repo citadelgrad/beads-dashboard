@@ -27,6 +27,21 @@ import IssueEditorModal from './IssueEditorModal';
 import CopyableId from './CopyableId';
 import DateBadge from './DateBadge';
 
+/**
+ * Safely parse JSON from localStorage, returning default on error
+ */
+function safeParseLocalStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === null) return defaultValue;
+    return JSON.parse(saved) as T;
+  } catch {
+    // Remove corrupted data
+    localStorage.removeItem(key);
+    return defaultValue;
+  }
+}
+
 interface TableViewProps {
   issues: Issue[];
 }
@@ -43,14 +58,12 @@ function TableView({ issues }: TableViewProps) {
 
   // Expanded epics tracking
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('beads-expanded-epics');
-    return saved ? new Set(JSON.parse(saved)) : new Set();
+    return new Set(safeParseLocalStorage<string[]>('beads-expanded-epics', []));
   });
 
   // Epics view: status filter (empty = default "all except closed", non-empty = show only selected)
   const [epicStatusFilter, setEpicStatusFilter] = useState<IssueStatus[]>(() => {
-    const saved = localStorage.getItem('beads-epic-status-filter');
-    return saved ? JSON.parse(saved) : [];
+    return safeParseLocalStorage<IssueStatus[]>('beads-epic-status-filter', []);
   });
 
   // Sorting state (default: priority ascending = highest priority first)
@@ -67,16 +80,13 @@ function TableView({ issues }: TableViewProps) {
 
   // Column filters with localStorage persistence
   const [statusFilter, setStatusFilter] = useState<IssueStatus[]>(() => {
-    const saved = localStorage.getItem('beads-filter-status');
-    return saved ? JSON.parse(saved) : [];
+    return safeParseLocalStorage<IssueStatus[]>('beads-filter-status', []);
   });
   const [typeFilter, setTypeFilter] = useState<string[]>(() => {
-    const saved = localStorage.getItem('beads-filter-type');
-    return saved ? JSON.parse(saved) : [];
+    return safeParseLocalStorage<string[]>('beads-filter-type', []);
   });
   const [priorityFilter, setPriorityFilter] = useState<Priority[]>(() => {
-    const saved = localStorage.getItem('beads-filter-priority');
-    return saved ? JSON.parse(saved) : [];
+    return safeParseLocalStorage<Priority[]>('beads-filter-priority', []);
   });
 
   // Dropdown state

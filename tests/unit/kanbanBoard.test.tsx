@@ -9,6 +9,8 @@ import KanbanBoard, {
   CATEGORY_TO_STATUS,
   isBlockedByDependencies,
   categorizeIssue,
+  getClosedAtAge,
+  CLOSED_TIME_FILTERS,
 } from '@/components/KanbanBoard';
 import type { Issue, Priority } from '@shared/types';
 
@@ -1620,6 +1622,163 @@ describe('KanbanBoard Component', () => {
       // View preference is handled by parent App component
       expect(localStorage.getItem('beads-dashboard-view')).toBeNull();
       expect(localStorage.getItem('beads-active-tab')).toBeNull();
+    });
+  });
+});
+
+describe('Closed Time Filter', () => {
+  describe('getClosedAtAge', () => {
+    it('returns 0 for issue closed today', () => {
+      const issue = createTestIssue({
+        status: 'closed',
+        closed_at: new Date().toISOString(),
+      });
+      expect(getClosedAtAge(issue)).toBe(0);
+    });
+
+    it('returns 7 for issue closed one week ago', () => {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const issue = createTestIssue({
+        status: 'closed',
+        closed_at: sevenDaysAgo,
+      });
+      expect(getClosedAtAge(issue)).toBe(7);
+    });
+
+    it('returns 30 for issue closed one month ago', () => {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const issue = createTestIssue({
+        status: 'closed',
+        closed_at: thirtyDaysAgo,
+      });
+      expect(getClosedAtAge(issue)).toBe(30);
+    });
+
+    it('falls back to updated_at when closed_at is missing', () => {
+      const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+      const issue = createTestIssue({
+        status: 'closed',
+        closed_at: undefined,
+        updated_at: fiveDaysAgo,
+      });
+      expect(getClosedAtAge(issue)).toBe(5);
+    });
+
+    it('returns Infinity when both closed_at and updated_at are missing', () => {
+      const issue = createTestIssue({
+        status: 'closed',
+        closed_at: undefined,
+        updated_at: undefined,
+      });
+      expect(getClosedAtAge(issue)).toBe(Infinity);
+    });
+  });
+
+  describe('CLOSED_TIME_FILTERS', () => {
+    it('has correct filter options', () => {
+      expect(CLOSED_TIME_FILTERS).toHaveLength(4);
+      expect(CLOSED_TIME_FILTERS.map((f) => f.value)).toEqual([7, 30, 90, Infinity]);
+    });
+
+    it('has correct labels', () => {
+      const labels = CLOSED_TIME_FILTERS.map((f) => f.label);
+      expect(labels).toContain('Last 7 days');
+      expect(labels).toContain('Last 30 days');
+      expect(labels).toContain('Last 90 days');
+      expect(labels).toContain('All time');
+    });
+  });
+
+  describe('Filter UI', () => {
+    it('renders the closed time filter dropdown', () => {
+      render(<KanbanBoard issues={[]} />);
+      const filterDropdown = screen.getByTestId('closed-time-filter');
+      expect(filterDropdown).toBeInTheDocument();
+    });
+
+    it('defaults to 7 days filter', () => {
+      render(<KanbanBoard issues={[]} />);
+      const filterDropdown = screen.getByTestId('closed-time-filter') as HTMLSelectElement;
+      expect(filterDropdown.value).toBe('7');
+    });
+
+    it('shows closed issues within filter range', () => {
+      const recentClosed = createTestIssue({
+        id: 'test-recent-closed',
+        status: 'closed',
+        closed_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+      });
+
+      render(<KanbanBoard issues={[recentClosed]} />);
+
+      // Should be visible with default 7-day filter
+      expect(screen.getByTestId('kanban-card-test-recent-closed')).toBeInTheDocument();
+    });
+
+    it('hides closed issues outside filter range', () => {
+      const oldClosed = createTestIssue({
+        id: 'test-old-closed',
+        status: 'closed',
+        closed_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
+      });
+
+      render(<KanbanBoard issues={[oldClosed]} />);
+
+      // Should NOT be visible with default 7-day filter
+      expect(screen.queryByTestId('kanban-card-test-old-closed')).not.toBeInTheDocument();
+    });
+
+    it('shows older issues when filter is changed to 30 days', async () => {
+      const oldClosed = createTestIssue({
+        id: 'test-old-closed',
+        status: 'closed',
+        closed_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago
+      });
+
+      render(<KanbanBoard issues={[oldClosed]} />);
+
+      // Not visible initially (7-day filter)
+      expect(screen.queryByTestId('kanban-card-test-old-closed')).not.toBeInTheDocument();
+
+      // Change filter to 30 days
+      const filterDropdown = screen.getByTestId('closed-time-filter');
+      fireEvent.change(filterDropdown, { target: { value: '30' } });
+
+      // Now should be visible
+      expect(screen.getByTestId('kanban-card-test-old-closed')).toBeInTheDocument();
+    });
+
+    it('shows all issues when filter is set to All time', () => {
+      const veryOldClosed = createTestIssue({
+        id: 'test-very-old-closed',
+        status: 'closed',
+        closed_at: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year ago
+      });
+
+      render(<KanbanBoard issues={[veryOldClosed]} />);
+
+      // Not visible initially (7-day filter)
+      expect(screen.queryByTestId('kanban-card-test-very-old-closed')).not.toBeInTheDocument();
+
+      // Change filter to All time (Infinity)
+      const filterDropdown = screen.getByTestId('closed-time-filter');
+      fireEvent.change(filterDropdown, { target: { value: 'Infinity' } });
+
+      // Now should be visible
+      expect(screen.getByTestId('kanban-card-test-very-old-closed')).toBeInTheDocument();
+    });
+
+    it('filter only affects closed column', () => {
+      const openIssue = createTestIssue({
+        id: 'test-open-issue',
+        status: 'open',
+        created_at: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(), // 100 days old
+      });
+
+      render(<KanbanBoard issues={[openIssue]} />);
+
+      // Open issues should be visible regardless of filter
+      expect(screen.getByTestId('kanban-card-test-open-issue')).toBeInTheDocument();
     });
   });
 });

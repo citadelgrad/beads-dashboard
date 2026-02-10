@@ -122,6 +122,27 @@ describe('API Routes', () => {
 
   });
 
+  describe('Issue ID validation', () => {
+    it('accepts issue IDs up to 100 characters', async () => {
+      const longId = 'a'.repeat(100);
+      const response = await request(app)
+        .post(`/api/issues/${longId}/status`)
+        .send({ status: 'open' });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('rejects issue IDs over 100 characters', async () => {
+      const tooLongId = 'a'.repeat(101);
+      const response = await request(app)
+        .post(`/api/issues/${tooLongId}/status`)
+        .send({ status: 'open' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Invalid issue ID format');
+    });
+  });
+
   describe('POST /api/issues/:id', () => {
     it('returns 400 when description is missing', async () => {
       const response = await request(app)
@@ -180,8 +201,8 @@ describe('API Routes', () => {
       expect(emitRefreshSpy).toHaveBeenCalled();
     });
 
-    it('accepts valid status values', async () => {
-      const validStatuses = ['open', 'in_progress', 'blocked', 'closed', 'deferred', 'pinned', 'hooked'];
+    it('accepts valid status values including tombstone', async () => {
+      const validStatuses = ['open', 'in_progress', 'blocked', 'closed', 'tombstone', 'deferred', 'pinned', 'hooked'];
 
       for (const status of validStatuses) {
         const response = await request(app)
@@ -190,6 +211,15 @@ describe('API Routes', () => {
 
         expect(response.status).toBe(200);
       }
+    });
+
+    it('rejects invalid status values', async () => {
+      const response = await request(app)
+        .post('/api/issues/test-123/status')
+        .send({ status: 'invalid_status' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Invalid status value');
     });
 
     it('emits refresh event after successful status update', async () => {
@@ -321,6 +351,33 @@ describe('API Routes', () => {
 
         expect(dueCommand).toBeDefined();
         expect(deferCommand).toBeUndefined();
+      });
+
+      it('auto-sets status to deferred when setting defer date without explicit status', async () => {
+        const deferDate = '2026-03-01T08:00:00.000Z';
+
+        const response = await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ defer: deferDate });
+
+        expect(response.status).toBe(200);
+
+        // Verify --status=deferred command was issued automatically
+        const statusCommand = executedCommands.find(cmd => cmd.includes('--status=deferred'));
+        expect(statusCommand).toBeDefined();
+      });
+
+      it('does NOT auto-set deferred status when status is explicitly provided', async () => {
+        const deferDate = '2026-03-01T08:00:00.000Z';
+
+        await request(app)
+          .patch('/api/issues/test-date-issue')
+          .send({ defer: deferDate, status: 'blocked' });
+
+        // Should have the explicit status, not auto-deferred
+        const deferredCommand = executedCommands.filter(cmd => cmd.includes('--status='));
+        expect(deferredCommand.length).toBe(1);
+        expect(deferredCommand[0]).toContain('--status=blocked');
       });
 
       it('setting defer date does NOT call --due (independent updates)', async () => {

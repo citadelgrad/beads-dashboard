@@ -11,6 +11,8 @@ import {
   ListCheck,
   X,
   GripVertical,
+  Clock,
+  ChevronDown,
 } from 'lucide-react';
 import type { Issue, IssueStatus, Priority } from '@shared/types';
 import IssueEditorModal from './IssueEditorModal';
@@ -98,6 +100,25 @@ const PRIORITY_BORDER_COLORS: Record<Priority, string> = {
   3: 'border-l-blue-500', // Low
   4: 'border-l-gray-400', // Lowest
 };
+
+// Closed time filter options
+const CLOSED_TIME_FILTERS = [
+  { value: 7, label: 'Last 7 days' },
+  { value: 30, label: 'Last 30 days' },
+  { value: 90, label: 'Last 90 days' },
+  { value: Infinity, label: 'All time' },
+] as const;
+
+type ClosedTimeFilterValue = typeof CLOSED_TIME_FILTERS[number]['value'];
+
+// Get age in days since issue was closed
+function getClosedAtAge(issue: Issue): number {
+  const closedDate = issue.closed_at || issue.updated_at;
+  if (!closedDate) return Infinity;
+  const closed = new Date(closedDate);
+  const now = new Date();
+  return Math.floor((now.getTime() - closed.getTime()) / (1000 * 60 * 60 * 24));
+}
 
 // Get age in days from created_at date
 function getAgeInDays(createdAt: string): number {
@@ -286,6 +307,7 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [closedTimeFilter, setClosedTimeFilter] = useState<ClosedTimeFilterValue>(7);
 
   // Touch drag state
   const touchRef = useRef<{ issue: Issue; startX: number; startY: number } | null>(null);
@@ -299,9 +321,18 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
   // Filter out tombstones and group issues by kanban category
   const visibleIssues = optimisticIssues.filter((issue) => issue.status !== 'tombstone');
   const issuesByCategory = COLUMNS.reduce((acc, col) => {
-    acc[col.category] = visibleIssues.filter(
+    let columnIssues = visibleIssues.filter(
       (issue) => categorizeIssue(issue, optimisticIssues) === col.category
     );
+
+    // Apply time filter to closed issues
+    if (col.category === 'closed' && closedTimeFilter !== Infinity) {
+      columnIssues = columnIssues.filter(
+        (issue) => getClosedAtAge(issue) <= closedTimeFilter
+      );
+    }
+
+    acc[col.category] = columnIssues;
     return acc;
   }, {} as Record<KanbanCategory, Issue[]>);
 
@@ -509,6 +540,31 @@ function KanbanBoard({ issues }: KanbanBoardProps) {
         </div>
       )}
 
+      {/* Closed issues time filter */}
+      <div className="flex justify-end mb-4">
+        <div className="relative">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Clock className="w-4 h-4" />
+            <span>Completed:</span>
+            <div className="relative">
+              <select
+                value={closedTimeFilter}
+                onChange={(e) => setClosedTimeFilter(Number(e.target.value) as ClosedTimeFilterValue)}
+                className="appearance-none bg-white border border-slate-200 rounded-md px-3 py-1.5 pr-8 text-sm text-slate-700 cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                data-testid="closed-time-filter"
+              >
+                {CLOSED_TIME_FILTERS.map((filter) => (
+                  <option key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Kanban columns */}
       <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '600px' }}>
         {COLUMNS.map((col) => (
@@ -555,7 +611,9 @@ export {
   CATEGORY_TO_STATUS,
   isBlockedByDependencies,
   categorizeIssue,
+  getClosedAtAge,
+  CLOSED_TIME_FILTERS,
 };
 
 // Export type for testing
-export type { KanbanCategory };
+export type { KanbanCategory, ClosedTimeFilterValue };

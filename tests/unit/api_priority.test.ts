@@ -89,6 +89,33 @@ describe('API Priority Routes', () => {
       expect(response.body).toHaveProperty('success', true);
     });
 
+    it('accepts priority 4 (Lowest valid)', async () => {
+      const response = await request(app)
+        .post('/api/issues/test-123/priority')
+        .send({ priority: 4 });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('success', true);
+    });
+
+    it('rejects priority 5 (out of range)', async () => {
+      const response = await request(app)
+        .post('/api/issues/test-123/priority')
+        .send({ priority: 5 });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Invalid priority value (must be 0-4)');
+    });
+
+    it('rejects negative priority', async () => {
+      const response = await request(app)
+        .post('/api/issues/test-123/priority')
+        .send({ priority: -1 });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Invalid priority value (must be 0-4)');
+    });
+
     it('emits refresh event after successful priority update', async () => {
       await request(app)
         .post('/api/issues/test-123/priority')

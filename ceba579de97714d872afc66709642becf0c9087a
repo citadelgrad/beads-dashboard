@@ -1,0 +1,25 @@
+tests/unit/api.test.ts
+  88a4c66e143844e6 125-145,204-205,216-222,356-382
+tests/unit/api_priority.test.ts
+  88a4c66e143844e6 92-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.1",
+  "base_commit_sha": "ceba579de97714d872afc66709642becf0c9087a",
+  "prompts": {
+    "88a4c66e143844e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "de728e18-fd11-4c42-a5a8-d3ac78c66f8e",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Scott Nixon <citadelgrad@gmail.com>",
+      "messages": [],
+      "total_additions": 114,
+      "total_deletions": 30,
+      "accepted_lines": 101,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,23 @@
+public/favicon.svg
+  c3ac47a84a188d2a 2-6,8-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.5",
+  "base_commit_sha": "e33b7d758c4258e980292d74a63e0a17dfcf9fb7",
+  "prompts": {
+    "c3ac47a84a188d2a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9aadcac6-bdb3-47c7-b6b5-65619d18428e",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Scott Nixon <citadelgrad@gmail.com>",
+      "messages": [],
+      "total_additions": 45,
+      "total_deletions": 45,
+      "accepted_lines": 18,
+      "overriden_lines": 0
+    }
+  }
+}

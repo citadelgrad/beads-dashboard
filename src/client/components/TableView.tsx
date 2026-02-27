@@ -400,12 +400,17 @@ function TableView({ issues }: TableViewProps) {
       // Apply priority filter
       if (priorityFilter.length > 0 && !priorityFilter.includes(e.epic.priority)) return false;
 
-      // Apply text search
+      // Apply text search (match epic or any child issue)
       if (filterText) {
         const searchLower = filterText.toLowerCase();
         const idMatch = e.epic.id.toLowerCase().includes(searchLower);
         const titleMatch = (e.epic.title || '').toLowerCase().includes(searchLower);
-        if (!idMatch && !titleMatch) return false;
+        const childMatch = e.children.some(
+          (child) =>
+            child.id.toLowerCase().includes(searchLower) ||
+            (child.title || '').toLowerCase().includes(searchLower)
+        );
+        if (!idMatch && !titleMatch && !childMatch) return false;
       }
       return true;
     })

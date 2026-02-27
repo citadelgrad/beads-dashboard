@@ -1,0 +1,23 @@
+src/client/components/TableView.tsx
+  1371a839e695c6a1 403,408-413
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.5",
+  "base_commit_sha": "175e009b5da0601448617ec9eecec75c1a48ac0a",
+  "prompts": {
+    "1371a839e695c6a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "55c3011d-6aab-44f1-a656-46336fa7c8c4",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Scott Nixon <citadelgrad@gmail.com>",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 2,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}

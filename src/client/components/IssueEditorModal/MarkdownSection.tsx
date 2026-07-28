@@ -10,6 +10,24 @@ interface MarkdownSectionProps {
   defaultExpanded?: boolean;
 }
 
+function formatCount(value: number, singular: string, plural = `${singular}s`) {
+  return `${value.toLocaleString()} ${value === 1 ? singular : plural}`;
+}
+
+function FieldCount({ value }: { value: string }) {
+  const characterCount = [...value].length;
+  const tokenCount = Math.ceil(characterCount / 4);
+
+  return (
+    <div
+      className="mt-1.5 text-right text-xs tabular-nums text-slate-400"
+      title="Approximate token count based on four characters per token"
+    >
+      {formatCount(characterCount, 'character')} · ~{formatCount(tokenCount, 'token')}
+    </div>
+  );
+}
+
 function MarkdownSection({
   label,
   value,
@@ -87,6 +105,7 @@ function MarkdownSection({
           {placeholder}
         </button>
       )}
+      <FieldCount value={value} />
     </div>
   );
 }

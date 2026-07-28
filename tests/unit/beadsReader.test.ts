@@ -4,17 +4,20 @@ import path from 'path';
 import os from 'os';
 import Database from 'better-sqlite3';
 import { readBeadsData, readBeadsDataFromSqlite, beadsDirectoryExists } from '@server/utils/beadsReader';
+import { BdCliBeadsClient } from '@server/utils/beadsClient';
 
 describe('readBeadsData', () => {
   let tempDir: string;
   let beadsDir: string;
   let issuesFile: string;
+  let originalPath: string;
 
   beforeEach(() => {
     // Create temporary directory for testing
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'beads-test-'));
     beadsDir = path.join(tempDir, '.beads');
     issuesFile = path.join(beadsDir, 'issues.jsonl');
+    originalPath = process.env.PATH || '';
   });
 
   afterEach(() => {
@@ -22,6 +25,7 @@ describe('readBeadsData', () => {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+    process.env.PATH = originalPath;
   });
 
   it('returns empty array when .beads/issues.jsonl does not exist', async () => {
@@ -58,6 +62,45 @@ describe('readBeadsData', () => {
     expect(result).toHaveLength(2);
     expect(result[0].id).toBe('test-1');
     expect(result[1].id).toBe('test-2');
+  });
+
+  it('uses bd export for Dolt-backed projects even when issues.jsonl is stale', async () => {
+    fs.mkdirSync(beadsDir);
+    fs.writeFileSync(
+      path.join(beadsDir, 'metadata.json'),
+      JSON.stringify({ database: 'dolt', backend: 'dolt', dolt_mode: 'embedded' })
+    );
+    fs.writeFileSync(
+      issuesFile,
+      JSON.stringify({
+        id: 'stale-1',
+        title: 'Stale JSONL',
+        status: 'open',
+        issue_type: 'task',
+        priority: 2,
+        created_at: '2024-01-01T00:00:00Z',
+      })
+    );
+
+    const fakeBin = path.join(tempDir, 'bin');
+    fs.mkdirSync(fakeBin);
+    const exportedIssue = {
+      id: 'exported-1',
+      title: 'From bd export',
+      status: 'open',
+      issue_type: 'task',
+      priority: 1,
+      created_at: '2024-01-02T00:00:00Z',
+    };
+    const bdScript = path.join(fakeBin, 'bd');
+    fs.writeFileSync(bdScript, `#!/bin/sh\nprintf '%s\\n' '${JSON.stringify(exportedIssue)}'\n`);
+    fs.chmodSync(bdScript, 0o755);
+    process.env.PATH = `${fakeBin}:${originalPath}`;
+
+    const result = await new BdCliBeadsClient(() => tempDir).listIssues();
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('exported-1');
+    expect(result[0].title).toBe('From bd export');
   });
 
   it('handles empty lines in JSONL file', async () => {
@@ -123,7 +166,7 @@ describe('readBeadsData', () => {
     expect(result[2].title).toBe('Add unit tests');
   });
 
-  it('prefers SQLite over JSONL when both exist', async () => {
+  it('prefers JSONL over SQLite when both exist', async () => {
     fs.mkdirSync(beadsDir);
 
     // Create JSONL with 1 issue
@@ -186,8 +229,8 @@ describe('readBeadsData', () => {
 
     const result = await readBeadsData(tempDir);
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('sqlite-1');
-    expect(result[0].title).toBe('From SQLite');
+    expect(result[0].id).toBe('jsonl-1');
+    expect(result[0].title).toBe('From JSONL');
   });
 });
 

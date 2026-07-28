@@ -70,5 +70,15 @@ FEATURES:
 // Set production environment before loading the server
 process.env.NODE_ENV = 'production';
 
+// Homebrew LaunchAgents run with a small PATH that may omit Homebrew's bin dir,
+// but the API shells out to `bd` for write operations.
+const pathParts = (process.env.PATH || '').split(':').filter(Boolean);
+for (const binDir of ['/opt/homebrew/bin', '/usr/local/bin']) {
+  if (!pathParts.includes(binDir)) {
+    pathParts.unshift(binDir);
+  }
+}
+process.env.PATH = pathParts.join(':');
+
 // Dynamically import the server (not hoisted like static import)
 await import('../dist/server/server/index.js');

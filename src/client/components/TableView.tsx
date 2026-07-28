@@ -47,7 +47,7 @@ interface TableViewProps {
 }
 
 function TableView({ issues }: TableViewProps) {
-  const [filterText, setFilterText] = useState('');
+  const [filterText] = useState('');
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
 
   // Epics view toggle with localStorage persistence
@@ -94,7 +94,6 @@ function TableView({ issues }: TableViewProps) {
 
   // Quick action state
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
-  const [updatingPriority, setUpdatingPriority] = useState<string | null>(null);
 
   // Persist filters to localStorage
   useEffect(() => {
@@ -193,14 +192,6 @@ function TableView({ issues }: TableViewProps) {
     }
   };
 
-  // Type icons mapping
-  const getTypeIcon = (type: string) => {
-    const t = (type || '').toLowerCase();
-    if (t === 'bug') return <Bug className="w-3 h-3" />;
-    if (t === 'feature') return <Box className="w-3 h-3" />;
-    if (t === 'epic') return <Boxes className="w-3 h-3" />;
-    return <ListCheck className="w-3 h-3" />; // Default (Task)
-  };
 
   // Get unique values for filters
   const uniqueStatuses = Array.from(
@@ -492,25 +483,6 @@ function TableView({ issues }: TableViewProps) {
     }
   };
 
-  const handlePriorityUpdate = async (issueId: string, newPriority: Priority) => {
-    setUpdatingPriority(issueId);
-    try {
-      const res = await fetch(`/api/issues/${issueId}/priority`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priority: newPriority }),
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to update priority');
-      }
-    } catch (err) {
-      console.error(err);
-      alert(`Failed to update priority: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setUpdatingPriority(null);
-    }
-  };
 
   // FilterDropdown component
   interface FilterDropdownProps {
@@ -1055,7 +1027,6 @@ function TableView({ issues }: TableViewProps) {
             ) : (
               filteredIssues.map((issue) => {
                 const created = new Date(issue.created_at);
-                const updated = issue.updated_at ? new Date(issue.updated_at) : null;
                 const isClosed = issue.status === 'closed';
                 const today = new Date();
                 const ageInDays = Math.floor((today.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));

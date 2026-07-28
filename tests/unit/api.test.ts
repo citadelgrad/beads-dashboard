@@ -7,20 +7,53 @@ import os from 'os';
 import { createApiRouter } from '@server/routes/api';
 import type { Issue } from '@shared/types';
 
-// Track executed commands for verification
+// Track executed bd commands for verification
 const executedCommands: string[] = [];
+const mockMigrationInspect = vi.hoisted(() => ({
+  stdout: 'Migration Inspection\n====================\nSchema Version: 1.1.0\nWarnings:\n',
+  stderr: '',
+  error: null as Error | null,
+}));
 
-// Mock child_process exec
+function formatExecFileCommand(file: string, args: string[]): string {
+  const rendered = [file];
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg.startsWith('--') && i + 1 < args.length && !args[i + 1].startsWith('--')) {
+      const value = args[i + 1];
+      const needsQuotes = /[\s:]/.test(value);
+      rendered.push(value === '' ? `${arg}=` : `${arg}=${needsQuotes ? `"${value}"` : value}`);
+      i += 1;
+    } else {
+      rendered.push(arg);
+    }
+  }
+  return rendered.join(' ');
+}
+
+// Mock child_process execFile
 vi.mock('child_process', () => {
-  const execMock = vi.fn((cmd: string, options: any, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
-    // Track the command
-    executedCommands.push(cmd);
+  const execFileMock = vi.fn((file: string, args: string[], _options: any, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+    const command = formatExecFileCommand(file, args);
+    executedCommands.push(command);
 
     // Simulate successful command execution
     if (typeof callback === 'function') {
       setTimeout(() => {
+        if (args[0] === 'export') {
+          callback(new Error('no bd fixture'), '', 'no bd fixture');
+          return;
+        }
+        if (args[0] === '--version') {
+          callback(null, 'bd version 0.61.0', '');
+          return;
+        }
+        if (args[0] === 'migrate' && args[1] === '--inspect') {
+          callback(mockMigrationInspect.error, mockMigrationInspect.stdout, mockMigrationInspect.stderr);
+          return;
+        }
         // Return appropriate output based on command
-        if (cmd.includes('bd create')) {
+        if (command.includes('bd create')) {
           callback(null, 'Created issue: test-new-123', '');
         } else {
           callback(null, 'success', '');
@@ -30,8 +63,8 @@ vi.mock('child_process', () => {
   });
 
   return {
-    default: { exec: execMock },
-    exec: execMock,
+    default: { execFile: execFileMock },
+    execFile: execFileMock,
   };
 });
 
@@ -72,8 +105,62 @@ describe('API Routes', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
     vi.clearAllMocks();
+    mockMigrationInspect.stdout = 'Migration Inspection\n====================\nSchema Version: 1.1.0\nWarnings:\n';
+    mockMigrationInspect.stderr = '';
+    mockMigrationInspect.error = null;
     // Clear executed commands
     executedCommands.length = 0;
+  });
+
+  describe('GET /api/beads/health', () => {
+    it('returns ok when migration inspection has no warnings', async () => {
+      const response = await request(app).get('/api/beads/health');
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('ok');
+      expect(response.body.readOnly).toBe(false);
+      expect(response.body.bdVersion).toBe('bd version 0.61.0');
+      expect(response.body.issues).toEqual([]);
+      expect(response.body.safeCommands.designatedMigrator).toContain('BD_ALLOW_REMOTE_MIGRATE=1 bd migrate');
+    });
+
+    it('surfaces schema mismatch as a warning', async () => {
+      mockMigrationInspect.stdout = [
+        'Migration Inspection',
+        '====================',
+        'Schema Version:',
+        'Warnings:',
+        '  ⚠ schema version mismatch (current: , expected: 1.1.0)',
+      ].join('\n');
+
+      const response = await request(app).get('/api/beads/health');
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('warning');
+      expect(response.body.readOnly).toBe(false);
+      expect(response.body.issues[0]).toMatchObject({
+        code: 'schema_mismatch',
+        severity: 'warning',
+      });
+    });
+
+    it('surfaces remote-backed migration refusal as read-only error', async () => {
+      mockMigrationInspect.error = new Error([
+        'refusing to auto-apply 4 pending schema migrations to a remote-backed database (v49 -> v53):',
+        'migrating clones independently forks the schema (#4259)',
+      ].join(' '));
+
+      const response = await request(app).get('/api/beads/health');
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('error');
+      expect(response.body.readOnly).toBe(true);
+      expect(response.body.issues[0]).toMatchObject({
+        code: 'remote_schema_migration_required',
+        severity: 'error',
+      });
+      expect(response.body.safeCommands.backup).toBe('bd export --all -o .beads/pre-migration-backup.jsonl');
+    });
   });
 
   describe('GET /api/data', () => {
@@ -395,14 +482,13 @@ describe('API Routes', () => {
         expect(dueCommand).toBeUndefined();
       });
 
-      it('calls bd sync --flush-only after date updates', async () => {
+      it('does not call obsolete bd sync --flush-only after date updates', async () => {
         await request(app)
           .patch('/api/issues/test-date-issue')
           .send({ due: '2026-02-15T08:00:00.000Z' });
 
-        // Verify sync was called
         const syncCommand = executedCommands.find(cmd => cmd.includes('bd sync --flush-only'));
-        expect(syncCommand).toBeDefined();
+        expect(syncCommand).toBeUndefined();
       });
 
       it('emits refresh event after successful date update', async () => {

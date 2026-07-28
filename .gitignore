@@ -28,4 +28,7 @@ Thumbs.db
 .beads/daemon.log
 .beads/daemon-error
 .beads/last-touched
+.beads/.auto-import-issues.jsonl
+.beads/backup/
+.beads/embeddeddolt/
 .claude/

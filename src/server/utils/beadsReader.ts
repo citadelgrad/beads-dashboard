@@ -1,17 +1,40 @@
 import fs from 'fs';
 import readline from 'readline';
 import path from 'path';
-import Database from 'better-sqlite3';
+import { createRequire } from 'module';
 import type { Issue, IssueDependency } from '@shared/types';
+import type DatabaseConstructor from 'better-sqlite3';
+
+const require = createRequire(import.meta.url);
 
 /**
- * Read issues from .beads/beads.db (SQLite) when available,
- * falling back to .beads/issues.jsonl for older beads installations.
+ * Legacy read-only fallback for projects where `bd export` is unavailable.
+ * Normal dashboard reads should go through BeadsClient, which calls bd first.
  */
 export async function readBeadsData(projectRoot: string): Promise<Issue[]> {
   const beadsDir = path.join(projectRoot, '.beads');
-  const dbFile = path.join(beadsDir, 'beads.db');
+  const issuesFile = path.join(beadsDir, 'issues.jsonl');
 
+  // Current Beads exports .beads/issues.jsonl even when a legacy SQLite DB is present.
+  // Prefer JSONL when available so the dashboard is not coupled to native SQLite
+  // bindings or stale legacy DB schemas.
+  if (fs.existsSync(issuesFile)) {
+    return readBeadsDataFromJsonl(projectRoot);
+  }
+
+  // Check if project uses no-db mode but has no issues file yet.
+  const configFile = path.join(beadsDir, 'config.yaml');
+  if (fs.existsSync(configFile)) {
+    try {
+      const configContent = fs.readFileSync(configFile, 'utf-8');
+      if (/^no-db:\s*true/m.test(configContent)) {
+        return readBeadsDataFromJsonl(projectRoot);
+      }
+    } catch { /* fall through to default logic */ }
+  }
+
+  // Legacy path: try SQLite first, fall back to JSONL
+  const dbFile = path.join(beadsDir, 'beads.db');
   if (fs.existsSync(dbFile)) {
     return readBeadsDataFromSqlite(dbFile);
   }
@@ -23,6 +46,9 @@ export async function readBeadsData(projectRoot: string): Promise<Issue[]> {
  * Read issues from SQLite database
  */
 export function readBeadsDataFromSqlite(dbPath: string): Issue[] {
+  // Load lazily: projects with JSONL should not fail just because the optional
+  // native better-sqlite3 binding was compiled for a different Node runtime.
+  const Database = require('better-sqlite3') as typeof DatabaseConstructor;
   const db = new Database(dbPath, { readonly: true });
   try {
     // Query all non-tombstone issues
@@ -166,7 +192,9 @@ function mapSqliteRowToIssue(
 }
 
 /**
- * Read and parse issues from .beads/issues.jsonl file (legacy fallback)
+ * Read and parse issues from .beads/issues.jsonl file.
+ * This is the primary storage for beads 0.61+ with no-db mode,
+ * and also serves as legacy fallback for older installations.
  */
 async function readBeadsDataFromJsonl(projectRoot: string): Promise<Issue[]> {
   const beadsDir = path.join(projectRoot, '.beads');
@@ -176,18 +204,47 @@ async function readBeadsDataFromJsonl(projectRoot: string): Promise<Issue[]> {
     return [];
   }
 
-  const allIssues: Issue[] = [];
   const fileStream = fs.createReadStream(issuesFile);
   const rl = readline.createInterface({
     input: fileStream,
     crlfDelay: Infinity,
   });
 
+  let content = '';
   for await (const line of rl) {
+    content += `${line}\n`;
+  }
+
+  return parseIssuesJsonl(content);
+}
+
+export function parseIssuesJsonl(content: string): Issue[] {
+  const allIssues: Issue[] = [];
+
+  for (const line of content.split('\n')) {
     if (line.trim()) {
       try {
-        const issue = JSON.parse(line) as Issue;
-        allIssues.push(issue);
+        const raw = JSON.parse(line) as Record<string, unknown>;
+
+        // Filter out tombstone issues
+        if (raw.status === 'tombstone') continue;
+
+        // Normalize owner → assignee (beads 0.61+ uses owner in JSONL)
+        if (raw.owner && !raw.assignee) {
+          raw.assignee = raw.owner;
+        }
+
+        // Extract parent_id from dependencies if present
+        if (Array.isArray(raw.dependencies)) {
+          for (const dep of raw.dependencies as IssueDependency[]) {
+            if (dep.type === 'parent-child' && dep.depends_on_id) {
+              raw.parent_id = dep.depends_on_id;
+              break;
+            }
+          }
+        }
+
+        allIssues.push(raw as unknown as Issue);
       } catch (e) {
         console.error(`Error parsing line in issues.jsonl:`, (e as Error).message);
       }

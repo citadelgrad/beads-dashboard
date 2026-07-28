@@ -29,7 +29,25 @@ export type IssueStatus =
   | 'hooked';
 
 // Issue types
-export type IssueType = 'task' | 'bug' | 'feature' | 'epic';
+export type IssueType = ExtendedIssueType;
+
+// Extended issue type for all editable fields
+export type ExtendedIssueType =
+  | 'bug'
+  | 'feature'
+  | 'task'
+  | 'epic'
+  | 'chore'
+  | 'merge-request'
+  | 'molecule'
+  | 'gate'
+  | 'agent'
+  | 'role'
+  | 'rig'
+  | 'convoy'
+  | 'event'
+  | 'slot'
+  | string;
 
 // Priority levels (0=Critical, 1=High, 2=Medium, 3=Low, 4=Lowest)
 export type Priority = 0 | 1 | 2 | 3 | 4;
@@ -38,27 +56,30 @@ export type Priority = 0 | 1 | 2 | 3 | 4;
 export interface IssueDependency {
   issue_id: string;
   depends_on_id: string;
-  type: 'blocks' | 'depends_on';
+  type: 'blocks' | 'depends_on' | 'parent-child' | 'discovered-from' | string;
   created_at?: string;
   created_by?: string;
+  metadata?: string;
 }
 
-// Main Issue interface matching .beads/issues.jsonl structure
+// Main Issue interface matching Beads' public export shape.
 export interface Issue {
   id: string;
   title: string;
   description?: string;
   status: IssueStatus;
-  issue_type: IssueType;
+  issue_type: ExtendedIssueType;
   priority: Priority;
   created_at: string; // ISO 8601 timestamp
   updated_at?: string; // ISO 8601 timestamp
   closed_at?: string; // ISO 8601 timestamp
   assignee?: string;
+  owner?: string; // Beads 0.61+ uses owner instead of assignee in JSONL
   labels?: string[];
   dependencies?: IssueDependency[]; // Dependency relationships
   blocked_by?: string[]; // IDs of issues blocking this one (legacy)
   parent_id?: string; // ID of parent epic (if applicable)
+  close_reason?: string; // Beads 0.61+ close reason
 
   // Date fields
   due?: string; // ISO 8601 timestamp - due date
@@ -146,23 +167,6 @@ export interface CreateIssueRequest {
   priority?: Priority;
 }
 
-// Extended issue type for all editable fields
-export type ExtendedIssueType =
-  | 'bug'
-  | 'feature'
-  | 'task'
-  | 'epic'
-  | 'chore'
-  | 'merge-request'
-  | 'molecule'
-  | 'gate'
-  | 'agent'
-  | 'role'
-  | 'rig'
-  | 'convoy'
-  | 'event'
-  | 'slot';
-
 // Request type for PATCH /api/issues/:id - all fields optional
 export interface UpdateIssueRequest {
   title?: string;
@@ -188,22 +192,52 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-// Beads registry entry (from ~/.beads/registry.json)
+export type BeadsHealthStatus = 'ok' | 'warning' | 'error';
+
+export type BeadsHealthIssueCode =
+  | 'remote_schema_migration_required'
+  | 'schema_mismatch'
+  | 'bd_unavailable'
+  | 'unknown';
+
+export interface BeadsHealthIssue {
+  code: BeadsHealthIssueCode;
+  severity: BeadsHealthStatus;
+  title: string;
+  message: string;
+  details?: string;
+}
+
+export interface BeadsHealth {
+  status: BeadsHealthStatus;
+  readOnly: boolean;
+  bdVersion?: string;
+  migrationInspection?: string;
+  issues: BeadsHealthIssue[];
+  safeCommands: {
+    backup: string;
+    designatedMigrator: string[];
+    adoptRemote: string[];
+  };
+}
+
+// Beads registry entry (from ~/.beads/registry.json). Runtime daemon fields are
+// optional legacy metadata and are not reliable across Beads versions.
 export interface BeadsRegistryEntry {
   workspace_path: string;
-  socket_path: string;
-  database_path: string;
-  pid: number;
-  version: string;
-  started_at: string;
+  socket_path?: string;
+  database_path?: string;
+  pid?: number;
+  version?: string;
+  started_at?: string;
 }
 
 // Registry response with project name extracted
 export interface BeadsProject {
   name: string; // Extracted from workspace_path
   path: string; // Full workspace_path
-  isActive: boolean; // Whether daemon is running
-  pid?: number;
+  isActive: boolean; // Reserved for future stable liveness signals.
+  pid?: number; // Legacy registry metadata only; do not use as source of truth.
   version?: string;
   started_at?: string;
 }

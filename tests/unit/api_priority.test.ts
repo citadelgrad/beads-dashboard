@@ -6,9 +6,9 @@ import path from 'path';
 import os from 'os';
 import { createApiRouter } from '@server/routes/api';
 
-// Mock child_process exec
+// Mock child_process execFile
 vi.mock('child_process', () => {
-  const execMock = vi.fn((cmd: string, options: any, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+  const execFileMock = vi.fn((_file: string, _args: string[], _options: any, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
     // Simulate successful command execution
     if (typeof callback === 'function') {
       setTimeout(() => {
@@ -18,8 +18,8 @@ vi.mock('child_process', () => {
   });
 
   return {
-    default: { exec: execMock },
-    exec: execMock,
+    default: { execFile: execFileMock },
+    execFile: execFileMock,
   };
 });
 

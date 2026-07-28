@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { X, Copy, Check } from 'lucide-react';
-import type { Issue, IssueStatus, Priority, IssueDependency } from '@shared/types';
+import type { Issue, IssueStatus, Priority, IssueDependency, ExtendedIssueType } from '@shared/types';
 import TitleSection from './TitleSection';
 import MarkdownSection from './MarkdownSection';
 import CollapsibleSection from './CollapsibleSection';
@@ -21,7 +21,7 @@ interface IssueEditorModalProps {
 interface FormState {
   title: string;
   description: string;
-  issue_type: string;
+  issue_type: ExtendedIssueType;
   status: IssueStatus;
   priority: Priority;
   assignee: string;
@@ -409,20 +409,20 @@ function IssueEditorModal({ issue, allIssues = [], onClose, onSave }: IssueEdito
           <div className="w-[35%] overflow-y-auto overflow-x-visible space-y-4">
               {/* Properties Section */}
               <PropertiesSection
-                values={formState}
+                values={formState as Partial<Issue>}
                 allIssues={allIssues}
                 onChange={handlePropertyChange}
               />
 
               {/* Dates Section */}
               <DatesSection
-                values={formState}
+                values={formState as Partial<Issue>}
                 onChange={handlePropertyChange}
               />
 
               {/* Metadata Section - collapsed by default */}
               <MetadataSection
-                values={formState}
+                values={formState as Partial<Issue>}
                 onChange={handlePropertyChange}
               />
 
@@ -431,13 +431,13 @@ function IssueEditorModal({ issue, allIssues = [], onClose, onSave }: IssueEdito
 
               {/* Labels Section */}
               <LabelsSection
-                values={formState}
+                values={formState as Partial<Issue>}
                 onChange={handleLabelsChange}
               />
 
               {/* Dependencies Section */}
               <DependenciesSection
-                values={formState}
+                values={formState as Partial<Issue>}
                 allIssues={allIssues}
                 onChange={handleDependenciesChange}
                 currentIssueId={issue.id}

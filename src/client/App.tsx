@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { Issue, TimeGranularity, CreateIssueRequest } from '@shared/types';
+import type { BeadsHealth, Issue, TimeGranularity, CreateIssueRequest } from '@shared/types';
 import { useMetrics } from '@/hooks/useMetrics';
 import DashboardView from '@/components/DashboardView';
 import TableView from '@/components/TableView';
@@ -10,6 +10,7 @@ import NewIssueButton from '@/components/NewIssueButton';
 import IssueCreatorModal from '@/components/IssueCreatorModal';
 import IssueEditorModal from '@/components/IssueEditorModal';
 import ProjectSwitcher from '@/components/ProjectSwitcher';
+import BeadsHealthBanner from '@/components/BeadsHealthBanner';
 
 function App() {
   const [parsedIssues, setParsedIssues] = useState<Issue[]>([]);
@@ -34,6 +35,7 @@ function App() {
 
   // Current project path from server
   const [currentProjectPath, setCurrentProjectPath] = useState<string>('');
+  const [beadsHealth, setBeadsHealth] = useState<BeadsHealth | null>(null);
 
   const metrics = useMetrics(parsedIssues, granularity);
 
@@ -63,9 +65,22 @@ function App() {
     }
   };
 
+  const fetchBeadsHealth = async () => {
+    try {
+      const res = await fetch('/api/beads/health');
+      if (!res.ok) throw new Error('Failed to fetch Beads health');
+      const data = await res.json() as BeadsHealth;
+      setBeadsHealth(data);
+    } catch (err) {
+      console.error('Failed to fetch Beads health:', err);
+      setBeadsHealth(null);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchCurrentProject();
+    fetchBeadsHealth();
 
     const socketInstance = io();
     setSocket(socketInstance);
@@ -74,6 +89,7 @@ function App() {
       console.log('Data changed, reloading...');
       fetchData();
       fetchCurrentProject();
+      fetchBeadsHealth();
     });
 
     return () => {
@@ -199,6 +215,8 @@ function App() {
           />
           <NewIssueButton onClick={() => setCreateModalOpen(true)} />
         </div>
+
+        <BeadsHealthBanner health={beadsHealth} />
 
         {/* Tabs - Premium segmented control style */}
         <div className="inline-flex p-1 bg-slate-100 rounded-lg" role="tablist">

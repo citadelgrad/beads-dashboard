@@ -50,7 +50,7 @@ function MarkdownSection({
   }, []);
 
   // Render markdown content
-  // Security note: This content comes from the local .beads/issues.jsonl file,
+  // Security note: This content comes from Beads' local export/read surface,
   // which is user-owned data stored locally on their machine, not untrusted
   // external input. This follows the same pattern as KanbanBoard.tsx:493-496.
   const renderMarkdown = (content: string) => {

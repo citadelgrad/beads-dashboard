@@ -1,0 +1,20 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "1cd1d0ce2e9507310a896ed9c7597324d126d0e6",
+  "prompts": {
+    "ed7afb36c1a9deb7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1adc121a-bd55-419f-9114-9cc072dbc0b1",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Scott Nixon <citadelgrad@gmail.com>",
+      "total_additions": 164,
+      "total_deletions": 17,
+      "accepted_lines": 164,
+      "overriden_lines": 0
+    }
+  }
+}

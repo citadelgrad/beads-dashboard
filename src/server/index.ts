@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { createApiRouter } from './routes/api.js';
 import { beadsDirectoryExists } from './utils/beadsReader.js';
 import { ProjectManager } from './utils/projectManager.js';
+import { resolveBindHost } from './utils/resolveBindHost.js';
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +20,8 @@ const initialProjectRoot = args._[0] || process.env.BEADS_PROJECT || process.cwd
 // In dev mode, backend runs on BEADS_PORT + 1 (Vite serves frontend on BEADS_PORT)
 const basePort = Number(process.env.BEADS_PORT) || 3199;
 const PORT = args.port || (process.env.NODE_ENV === 'production' ? basePort : basePort + 1);
+// Bind to loopback only by default; --host or BEADS_HOST can opt into a wider interface.
+const HOST = resolveBindHost(args);
 
 // Create project manager for dynamic project switching
 const projectManager = new ProjectManager(initialProjectRoot);
@@ -125,8 +128,8 @@ io.on('connection', (socket) => {
 });
 
 // Start server
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Server running at http://${HOST}:${PORT}`);
 });
 
 // Handle server errors

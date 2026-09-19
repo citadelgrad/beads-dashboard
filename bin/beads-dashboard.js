@@ -34,6 +34,7 @@ ARGUMENTS:
 
 OPTIONS:
   --port=PORT     Port to run the server on (default: 3199)
+  --host=HOST     Interface to bind to (default: 127.0.0.1)
   --version, -v   Show version number
   --help, -h      Show this help message
 
